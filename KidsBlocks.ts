@@ -60,6 +60,15 @@ enum Kids_Servo {
     S7
 }
 
+enum Kids_Band {
+    //% block="ช้า (0-40)"
+    Slow = 0,
+    //% block="กลาง (41-60)"
+    Medium = 1,
+    //% block="เร็ว (61-100)"
+    Fast = 2
+}
+
 enum Kids_Gain {
     //% block="KP"
     KP,
@@ -87,8 +96,34 @@ enum Kids_Sensor {
 }
 
 namespace KrathokKidsBit {
-    let kidsKP = 0.05
-    let kidsKD = 0.1
+    // เกนแยกตามช่วงความเร็ว ตามแนวทางของโปรเจกต์ PT-BOT SPT
+    // ดัชนี 0 = ช้า, 1 = กลาง, 2 = เร็ว
+    // ค่าตั้งต้นเท่ากันทั้งสามช่วง เพื่อให้พฤติกรรมเดิมไม่เปลี่ยนจนกว่าจะจูน
+    let kidsKPBand = [0.05, 0.05, 0.05]
+    let kidsKDBand = [0.1, 0.1, 0.1]
+
+    /**
+     * ความเร็วนี้อยู่ช่วงไหน
+     */
+    function bandOf(speed: number): number {
+        if (speed <= 40) return Kids_Band.Slow
+        if (speed <= 60) return Kids_Band.Medium
+        return Kids_Band.Fast
+    }
+
+    function bandName(band: number): string {
+        if (band == Kids_Band.Slow) return "SLOW"
+        if (band == Kids_Band.Medium) return "MED"
+        return "FAST"
+    }
+
+    function kpFor(speed: number): number {
+        return kidsKPBand[bandOf(speed)]
+    }
+
+    function kdFor(speed: number): number {
+        return kidsKDBand[bandOf(speed)]
+    }
     let kidsLineWarned = false
 
     /**
@@ -247,7 +282,7 @@ namespace KrathokKidsBit {
     export function lineFollow(speed: number): void {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
-        Follower(speed, Math.min(100, speed * 2), kidsKP, kidsKD)
+        Follower(speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
     }
 
     /**
@@ -263,7 +298,7 @@ namespace KrathokKidsBit {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         let find = junction == Kids_Junction.Left ? Find_Line.Left : (junction == Kids_Junction.Right ? Find_Line.Right : Find_Line.Center)
-        ForwardLINECount(Forward_Direction.Forward, find, Math.max(1, Math.floor(count)), speed, Math.min(100, speed * 2), 20, kidsKP, kidsKD)
+        ForwardLINECount(Forward_Direction.Forward, find, Math.max(1, Math.floor(count)), speed, Math.min(100, speed * 2), 20, kpFor(speed), kdFor(speed))
     }
 
     /**
@@ -278,7 +313,7 @@ namespace KrathokKidsBit {
     export function lineFollowFor(seconds: number, speed: number): void {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
-        ForwardTIME(Forward_Direction.Forward, Math.max(0, seconds) * 1000, speed, Math.min(100, speed * 2), kidsKP, kidsKD)
+        ForwardTIME(Forward_Direction.Forward, Math.max(0, seconds) * 1000, speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
     }
 
     /**
@@ -412,12 +447,13 @@ namespace KrathokKidsBit {
         let means: number[] = []
         let peaks: number[] = []
 
-        serial.writeLine("== TUNE " + label + " speed " + speed + " ==")
+        serial.writeLine("== TUNE " + label + " " + bandName(bandOf(speed)) + " speed " + speed + " ==")
         for (let i = 0; i < 4; i++) {
-            let kp = label == "KP" ? values[i] : kidsKP
-            let kd = label == "KP" ? (kdFixed ? kidsKD : 0) : values[i]
+            let band = bandOf(speed)
+            let kp = label == "KP" ? values[i] : kidsKPBand[band]
+            let kd = label == "KP" ? (kdFixed ? kidsKDBand[band] : 0) : values[i]
             if (oledIsReady()) oledClear()
-            tuneSay(1, "TUNE " + label + " " + (i + 1) + "/4")
+            tuneSay(1, "TUNE " + label + " " + bandName(bandOf(speed)) + " " + (i + 1) + "/4")
             tuneSay(2, label + " = " + fmt2(values[i]))
             tuneSay(3, "put on line, press A")
             music.playTone(784, music.beat(BeatFraction.Quarter))
@@ -439,7 +475,7 @@ namespace KrathokKidsBit {
         }
 
         if (oledIsReady()) oledClear()
-        tuneSay(1, "TUNE " + label + " done")
+        tuneSay(1, "TUNE " + label + " " + bandName(bandOf(speed)) + " done")
         for (let i = 0; i < 4; i++) {
             tuneSay(2 + i, (i == best ? ">" : " ") + fmt2(values[i]) + " a" + means[i] + " m" + peaks[i])
         }
@@ -474,8 +510,9 @@ namespace KrathokKidsBit {
     //% from.defl=0.02 to.defl=0.20
     //% inlineInputMode=inline
     export function lineTuneKpNoKd(speed: number, from: number, to: number): void {
-        kidsKP = tuneSweep("KP", false, speed, from, to)
-        kidsKD = 0
+        let band = bandOf(kidsClamp(speed, 0, 100))
+        kidsKPBand[band] = tuneSweep("KP", false, speed, from, to)
+        kidsKDBand[band] = 0
     }
 
     /**
@@ -489,7 +526,7 @@ namespace KrathokKidsBit {
     //% from.defl=0 to.defl=8
     //% inlineInputMode=inline
     export function lineTuneKd(speed: number, from: number, to: number): void {
-        kidsKD = tuneSweep("KD", true, speed, from, to)
+        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KD", true, speed, from, to)
     }
 
     /**
@@ -504,7 +541,7 @@ namespace KrathokKidsBit {
     //% from.defl=0.02 to.defl=0.40
     //% inlineInputMode=inline
     export function lineTuneKpWithKd(speed: number, from: number, to: number): void {
-        kidsKP = tuneSweep("KP", true, speed, from, to)
+        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KP", true, speed, from, to)
     }
 
     /**
@@ -521,7 +558,8 @@ namespace KrathokKidsBit {
     //% inlineInputMode=inline
     export function lineWobble(speed: number, seconds: number): number {
         kidsLineReady()
-        let r = tuneScore(kidsKP, kidsKD, kidsClamp(speed, 0, 100), Math.max(1, seconds) * 1000)
+        speed = kidsClamp(speed, 0, 100)
+        let r = tuneScore(kpFor(speed), kdFor(speed), speed, Math.max(1, seconds) * 1000)
         serial.writeLine("WOBBLE avg " + r[0] + " max " + r[1])
         if (oledIsReady()) {
             oledClear()
@@ -538,13 +576,15 @@ namespace KrathokKidsBit {
     //% group="จูน PID"
     //% subcategory="เดินตามเส้น"
     //% weight=75
-    //% block="ค่าความไวตอนนี้ $which"
-    export function lineGain(which: Kids_Gain): number {
-        return which == Kids_Gain.KP ? kidsKP : kidsKD
+    //% block="ค่าความไว ช่วง $band $which"
+    //% inlineInputMode=inline
+    export function lineGain(band: Kids_Band, which: Kids_Gain): number {
+        return which == Kids_Gain.KP ? kidsKPBand[band] : kidsKDBand[band]
     }
 
     /**
-     * สำหรับครู: ปรับค่าความไวในการเดินตามเส้น (ค่าเริ่มต้น KP 0.05, KD 0.1)
+     * สำหรับครู: ปรับค่าความไวในการเดินตามเส้นให้เหมือนกันทุกช่วงความเร็ว
+     * ถ้าต้องการแยกทีละช่วง ใช้บล็อก "ปรับความไว ช่วง _" แทน
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
@@ -552,8 +592,28 @@ namespace KrathokKidsBit {
     //% block="ปรับความไวเดินตามเส้น KP $kp KD $kd"
     //% kp.defl=0.05 kd.defl=0.1
     export function lineTuning(kp: number, kd: number): void {
-        kidsKP = kp
-        kidsKD = kd
+        for (let i = 0; i < 3; i++) {
+            kidsKPBand[i] = kp
+            kidsKDBand[i] = kd
+        }
+    }
+
+    /**
+     * ปรับความไวเฉพาะช่วงความเร็วเดียว
+     * หุ่นจะหยิบค่าของช่วงที่ตรงกับความเร็วที่สั่งไปใช้เอง
+     * @param band ช่วงความเร็ว
+     * @param kp ค่า KP ของช่วงนี้
+     * @param kd ค่า KD ของช่วงนี้
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=87
+    //% block="ปรับความไว ช่วง $band KP $kp KD $kd"
+    //% kp.defl=0.05 kd.defl=0.1
+    //% inlineInputMode=inline
+    export function lineTuningBand(band: Kids_Band, kp: number, kd: number): void {
+        kidsKPBand[band] = kp
+        kidsKDBand[band] = kd
     }
 
     // ================= เซ็นเซอร์ =================
