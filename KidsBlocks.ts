@@ -293,6 +293,30 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * ส่งค่าเซ็นเซอร์เส้นออกทางสาย USB เพื่อดูใน "Show data" ของ MakeCode
+     * ใช้หาค่าตอนอยู่บนเส้น (ดำ) และตอนอยู่บนพื้น (ขาว) ก่อนเอาไปใส่บล็อก
+     * "ตั้งค่าเซ็นเซอร์ช่อง" ชื่อคอลัมน์คือหมายเลขช่อง เช่น ch0 จึงใส่ต่อได้ตรงๆ
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=82
+    //% block="ส่งค่าเซ็นเซอร์เส้นไปคอมพิวเตอร์"
+    export function lineSensorToSerial(): void {
+        // ไม่เรียก kidsLineReady() เพราะบล็อกนี้มีไว้ใช้ "ก่อน" สอนเซ็นเซอร์
+        // จึงไม่ควรเตือนว่ายังไม่ได้สอน
+        if (Num_Sensor == 0) lineSetupStandard()
+        for (let i = 0; i < Sensor_Left.length; i++) {
+            serial.writeValue("ch" + Sensor_Left[i], ADCRead(adcCmd(Sensor_Left[i])))
+        }
+        for (let i = 0; i < Sensor_PIN.length; i++) {
+            serial.writeValue("ch" + Sensor_PIN[i], ADCRead(adcCmd(Sensor_PIN[i])))
+        }
+        for (let i = 0; i < Sensor_Right.length; i++) {
+            serial.writeValue("ch" + Sensor_Right[i], ADCRead(adcCmd(Sensor_Right[i])))
+        }
+    }
+
+    /**
      * ปกติให้เดินตามเส้นที่สอนไว้ ถ้าสอนสลับกัน (จำพื้นเป็นเส้น) ให้เลือก "สลับเส้นกับพื้น"
      */
     //% group="ตั้งค่าเส้น"
