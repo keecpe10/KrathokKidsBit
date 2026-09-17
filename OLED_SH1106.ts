@@ -583,20 +583,42 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         return out
     }
 
-    function oledRawRow(prefix: string, sensors: number[]): string {
-        let t = prefix
-        for (let i = 0; i < sensors.length; i++) {
-            t += " " + ADCRead(oledAdcCmd(sensors[i]))
+    // ตัวอักษรกว้าง 6px ที่ขนาด 1 จอกว้าง 128px จึงได้ 21 ตัวต่อบรรทัด
+    const OLED_COLS = 21
+
+    /**
+     * ต่อค่าเข้ากับหัวแถว ถ้ายาวเกินบรรทัดจะขึ้นบรรทัดใหม่ให้เอง
+     * จำนวนเซ็นเซอร์จึงไม่ทำให้ค่าล้นหายไปนอกจอ
+     */
+    function oledAddRow(lines: string[], prefix: string, parts: string[]): void {
+        let cur = prefix
+        for (let i = 0; i < parts.length; i++) {
+            let next = cur + " " + parts[i]
+            if (next.length > OLED_COLS) {
+                lines.push(cur)
+                cur = " " + parts[i]
+            }
+            else {
+                cur = next
+            }
         }
-        return t
+        lines.push(cur)
     }
 
-    function oledPctRow(prefix: string, sensors: number[], line: number[], bg: number[]): string {
-        let t = prefix
+    function oledRawParts(sensors: number[]): string[] {
+        let out: string[] = []
         for (let i = 0; i < sensors.length; i++) {
-            t += " " + oledSensorPct(sensors[i], oledCal(line, i), oledCal(bg, i))
+            out.push("" + ADCRead(oledAdcCmd(sensors[i])))
         }
-        return t
+        return out
+    }
+
+    function oledPctParts(sensors: number[], line: number[], bg: number[]): string[] {
+        let out: string[] = []
+        for (let i = 0; i < sensors.length; i++) {
+            out.push("" + oledSensorPct(sensors[i], oledCal(line, i), oledCal(bg, i)))
+        }
+        return out
     }
 
     /**
@@ -616,16 +638,17 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
             oledUpdate()
             return
         }
-        oledText("LINE SENSOR", 0, 0, 1, OLED_Color.White)
-        oledText(oledRawRow("L", Sensor_Left), 0, 12, 1, OLED_Color.White)
-        oledText(oledRawRow("C", Sensor_PIN), 0, 20, 1, OLED_Color.White)
-        oledText(oledRawRow("R", Sensor_Right), 0, 28, 1, OLED_Color.White)
-        oledText(oledPctRow("%", Sensor_PIN, Color_Line, Color_Background), 0, 40, 1, OLED_Color.White)
-        if (lineCalibrated()) {
-            oledText("POS " + GETPosition() + "/" + (Num_Sensor - 1) * 1000, 0, 52, 1, OLED_Color.White)
-        }
-        else {
-            oledText("NOT CALIBRATED", 0, 52, 1, OLED_Color.White)
+        let lines: string[] = []
+        if (lineCalibrated()) lines.push("POS " + GETPosition() + "/" + (Num_Sensor - 1) * 1000)
+        else lines.push("NOT CALIBRATED")
+        oledAddRow(lines, "L", oledRawParts(Sensor_Left))
+        oledAddRow(lines, "C", oledRawParts(Sensor_PIN))
+        oledAddRow(lines, "R", oledRawParts(Sensor_Right))
+        oledAddRow(lines, "%", oledPctParts(Sensor_PIN, Color_Line, Color_Background))
+        // จอสูง 64px ตัวอักษรสูง 8px จึงแสดงได้ 8 บรรทัด
+        let rows = Math.min(8, lines.length)
+        for (let i = 0; i < rows; i++) {
+            oledText(lines[i], 0, i * 8, 1, OLED_Color.White)
         }
         oledUpdate()
     }

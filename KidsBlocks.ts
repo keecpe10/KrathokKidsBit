@@ -200,14 +200,15 @@ namespace KrathokKidsBit {
     // ================= เดินตามเส้น =================
 
     /**
-     * ตั้งค่าเซ็นเซอร์เส้นแบบมาตรฐาน: เซ็นเซอร์กลาง ช่อง 1,0,7,6 / ซ้าย ช่อง 2 / ขวา ช่อง 5
+     * ตั้งค่าเซ็นเซอร์เส้นแบบมาตรฐานของ PTKidsBIT Education Robot Kit
+     * เซ็นเซอร์กลาง ช่อง 0-5 / ทางแยกซ้าย ช่อง 6 / ทางแยกขวา ช่อง 7
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
     //% weight=90
     //% block="ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน"
     export function lineSetupStandard(): void {
-        LINESensorSET([1, 0, 7, 6], [2], [5], LED_Pin.Disable)
+        LINESensorSET([0, 1, 2, 3, 4, 5], [6], [7], LED_Pin.Disable)
     }
 
     /**
