@@ -637,6 +637,68 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
+    function oledChIn(list: number[], ch: number): boolean {
+        for (let i = 0; i < list.length; i++) if (list[i] == ch) return true
+        return false
+    }
+
+    /**
+     * หมายเลขช่องที่ตั้งค่าไว้ทั้งหมด เรียงจากน้อยไปมากและไม่ซ้ำ
+     */
+    function oledUsedChannels(): number[] {
+        let out: number[] = []
+        for (let ch = 0; ch <= 7; ch++) {
+            if (oledChIn(Sensor_PIN, ch) || oledChIn(Sensor_Left, ch) || oledChIn(Sensor_Right, ch)) out.push(ch)
+        }
+        return out
+    }
+
+    function oledIndexOfCh(list: number[], ch: number): number {
+        for (let i = 0; i < list.length; i++) if (list[i] == ch) return i
+        return -1
+    }
+
+    /**
+     * แสดงค่าเซ็นเซอร์พร้อมหมายเลขช่อง เช่น CH0 1200
+     * ใช้จดค่าตอนอยู่บนเส้น (ดำ) และบนพื้น (ขาว) ไปใส่บล็อก "ตั้งค่าเซ็นเซอร์ช่อง"
+     * ชื่อที่แสดงตรงกับหมายเลขช่องที่บล็อกนั้นรับ จึงใส่ต่อได้ทันที
+     */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=58
+    //% block="จอ OLED แสดงค่าเซ็นเซอร์รายช่อง"
+    export function oledLineSensorChannels(): void {
+        oledCheck()
+        oledBuf.fill(0)
+        oledDirty = 0xFF
+        let chs = oledUsedChannels()
+        if (chs.length == 0) {
+            oledText("NO SENSOR SETUP", 0, 24, 1, OLED_Color.White)
+            oledUpdate()
+            return
+        }
+        // อ่านช่องละครั้งเดียว แล้วใช้ซ้ำทั้งตารางและการคำนวณตำแหน่ง
+        let raw: number[] = []
+        for (let i = 0; i < chs.length; i++) raw.push(ADCRead(adcCmd(chs[i])))
+
+        oledText("LINE SENSOR", 0, 0, 1, OLED_Color.White)
+        // สองคอลัมน์ คอลัมน์ละไม่เกิน 4 แถว รองรับครบ 8 ช่อง
+        for (let i = 0; i < chs.length; i++) {
+            let col = i >= 4 ? 66 : 0
+            let row = i >= 4 ? i - 4 : i
+            oledText("CH" + chs[i] + " " + raw[i], col, 12 + row * 10, 1, OLED_Color.White)
+        }
+        let rawC: number[] = []
+        for (let i = 0; i < Sensor_PIN.length; i++) {
+            let idx = oledIndexOfCh(chs, Sensor_PIN[i])
+            if (idx >= 0) rawC.push(raw[idx])
+            else rawC.push(0)
+        }
+        if (lineCalibrated()) oledText("POS " + positionFrom(rawC), 0, 54, 1, OLED_Color.White)
+        else oledText("NOT CALIBRATED", 0, 54, 1, OLED_Color.White)
+        oledUpdate()
+    }
+
     /**
      * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นกราฟแท่ง เรียงตามตำแหน่งจริงซ้าย -> ขวา
      * แท่งยิ่งสูง = ยิ่งเห็นเส้นชัด แถบทึบใต้แท่ง = เซ็นเซอร์ตัวนั้นอยู่บนเส้น
