@@ -175,6 +175,13 @@ enum Turn_Line {
     Right
 }
 
+enum Cal_Which {
+    //% block="บนเส้น"
+    Line,
+    //% block="บนพื้น"
+    Ground
+}
+
 enum Line_Follow_Mode {
     //% block="ตามเส้นที่สอนไว้"
     Normal = 0,
@@ -338,6 +345,83 @@ namespace KrathokKidsBit {
             && groupCalibrated(Sensor_PIN)
             && groupCalibrated(Sensor_Left)
             && groupCalibrated(Sensor_Right)
+    }
+
+    function calBeepBad(): void {
+        music.playTone(262, music.beat(BeatFraction.Quarter))
+        music.playTone(196, music.beat(BeatFraction.Quarter))
+    }
+
+    function storeCal(ch: number, onLine: number, onGround: number): void {
+        Cal_Line_Ch[ch] = Math.max(0, Math.min(4095, Math.floor(onLine)))
+        Cal_Bg_Ch[ch] = Math.max(0, Math.min(4095, Math.floor(onGround)))
+        Cal_Has_Ch[ch] = true
+    }
+
+    /**
+     * ใส่ค่าคาลิเบรตของเซ็นเซอร์ทีละช่องเอง แทนการสอนด้วยปุ่ม A
+     * ใช้ตอนรู้ค่าอยู่แล้ว จะได้ไม่ต้องสอนเซ็นเซอร์ใหม่ทุกครั้งก่อนปล่อยหุ่น
+     * @param ch หมายเลขช่อง ADC 0-7
+     * @param onLine ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนเส้น
+     * @param onGround ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนพื้น
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=85
+    //% block="ตั้งค่าเซ็นเซอร์ช่อง $ch บนเส้น $onLine บนพื้น $onGround"
+    //% ch.min=0 ch.max=7 ch.defl=0
+    //% onLine.min=0 onLine.max=4095 onLine.defl=0
+    //% onGround.min=0 onGround.max=4095 onGround.defl=4090
+    //% inlineInputMode=inline
+    export function setSensorCal(ch: number, onLine: number, onGround: number): void {
+        ch = Math.floor(ch)
+        if (!validCh(ch)) {
+            calBeepBad()
+            return
+        }
+        storeCal(ch, onLine, onGround)
+        applyCal()
+    }
+
+    /**
+     * ใส่ค่าคาลิเบรตชุดเดียวกันให้เซ็นเซอร์ทุกตัวที่ตั้งค่าไว้ ทั้งกลาง ซ้าย และขวา
+     * @param onLine ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนเส้น
+     * @param onGround ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนพื้น
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=84
+    //% block="ตั้งค่าเซ็นเซอร์ทุกช่อง บนเส้น $onLine บนพื้น $onGround"
+    //% onLine.min=0 onLine.max=4095 onLine.defl=0
+    //% onGround.min=0 onGround.max=4095 onGround.defl=4090
+    //% inlineInputMode=inline
+    export function setAllSensorCal(onLine: number, onGround: number): void {
+        if (Sensor_PIN.length == 0) {
+            // ยังไม่ได้บอกว่าใช้เซ็นเซอร์ช่องไหนบ้าง จึงไม่รู้ว่าจะใส่ให้ตัวไหน
+            calBeepBad()
+            return
+        }
+        for (let i = 0; i < Sensor_PIN.length; i++) storeCal(Sensor_PIN[i], onLine, onGround)
+        for (let i = 0; i < Sensor_Left.length; i++) storeCal(Sensor_Left[i], onLine, onGround)
+        for (let i = 0; i < Sensor_Right.length; i++) storeCal(Sensor_Right[i], onLine, onGround)
+        applyCal()
+    }
+
+    /**
+     * อ่านค่าคาลิเบรตที่เก็บไว้ของช่องหนึ่ง เอาไว้จดไปใส่เองในครั้งต่อไป
+     * @param ch หมายเลขช่อง ADC 0-7
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=83
+    //% block="ค่าคาลิเบรตช่อง $ch $which"
+    //% ch.min=0 ch.max=7 ch.defl=0
+    //% inlineInputMode=inline
+    export function getSensorCal(ch: number, which: Cal_Which): number {
+        ch = Math.floor(ch)
+        if (!validCh(ch)) return 0
+        if (which == Cal_Which.Line) return Cal_Line_Ch[ch]
+        return Cal_Bg_Ch[ch]
     }
 
     function initPCA(): void {
