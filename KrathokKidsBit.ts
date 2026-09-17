@@ -216,30 +216,66 @@ namespace KrathokKidsBit {
         pins.digitalWritePin(pin, on ? 1 : 0)
     }
 
+    // คลังค่าคาลิเบรต เก็บตาม "หมายเลขช่อง ADC" 0-7 เป็นแหล่งข้อมูลจริงเพียงที่เดียว
+    // Color_* ทั้งหมดถูกสร้างจากคลังนี้ ทำให้เรียก SensorCalibrate กับ LINESensorSET
+    // ลำดับไหนก่อนก็ได้ และแยกคาลิเบรตหลายรอบได้
+    let Cal_Line_Ch = [0, 0, 0, 0, 0, 0, 0, 0]
+    let Cal_Bg_Ch = [0, 0, 0, 0, 0, 0, 0, 0]
+    let Cal_Has_Ch = [false, false, false, false, false, false, false, false]
+
+    function validCh(ch: number): boolean {
+        return ch >= 0 && ch <= 7
+    }
+
     /**
-     * จับคู่ค่าคาลิเบรต (เก็บตามหมายเลขช่อง ADC) เข้ากับลำดับเซ็นเซอร์ที่ตั้งไว้
+     * ดึงค่าคาลิเบรตของเซ็นเซอร์แต่ละกลุ่มออกมาเรียงตามลำดับที่ตั้งไว้
      */
-    function calFor(sensors: number[], cal: number[]): number[] {
+    function calRow(sensors: number[], src: number[]): number[] {
         let out: number[] = []
         for (let i = 0; i < sensors.length; i++) {
-            out.push(cal[sensors[i]])
+            if (validCh(sensors[i])) out.push(src[sensors[i]])
+            else out.push(0)
         }
         return out
     }
 
     /**
+     * สร้าง Color_* ใหม่จากคลังค่าคาลิเบรต
      * ถ้าค่าเส้นกับพื้นเท่ากัน pins.map จะหารด้วยศูนย์ จึงถ่างออก 1 หน่วย
-     * คืนค่า true เมื่อเจอคู่ที่แยกไม่ออก (คาลิเบรตไม่ผ่าน)
      */
-    function separateCal(line: number[], background: number[]): boolean {
-        let bad = false
-        for (let i = 0; i < line.length; i++) {
-            if (line[i] == background[i]) {
-                background[i] = line[i] + 1
-                bad = true
-            }
+    function applyCal(): void {
+        Color_Line = calRow(Sensor_PIN, Cal_Line_Ch)
+        Color_Background = calRow(Sensor_PIN, Cal_Bg_Ch)
+        Color_Line_Left = calRow(Sensor_Left, Cal_Line_Ch)
+        Color_Background_Left = calRow(Sensor_Left, Cal_Bg_Ch)
+        Color_Line_Right = calRow(Sensor_Right, Cal_Line_Ch)
+        Color_Background_Right = calRow(Sensor_Right, Cal_Bg_Ch)
+        separateCal(Color_Line, Color_Background)
+        separateCal(Color_Line_Left, Color_Background_Left)
+        separateCal(Color_Line_Right, Color_Background_Right)
+    }
+
+    function separateCal(line: number[], background: number[]): void {
+        for (let i = 0; i < line.length && i < background.length; i++) {
+            if (line[i] == background[i]) background[i] = line[i] + 1
         }
-        return bad
+    }
+
+    function groupCalibrated(sensors: number[]): boolean {
+        for (let i = 0; i < sensors.length; i++) {
+            if (!validCh(sensors[i]) || !Cal_Has_Ch[sensors[i]]) return false
+        }
+        return true
+    }
+
+    /**
+     * สอนเซ็นเซอร์ครบทุกตัวที่ตั้งค่าไว้แล้วหรือยัง
+     */
+    export function lineCalibrated(): boolean {
+        return Sensor_PIN.length > 0
+            && groupCalibrated(Sensor_PIN)
+            && groupCalibrated(Sensor_Left)
+            && groupCalibrated(Sensor_Right)
     }
 
     function initPCA(): void {
@@ -1469,6 +1505,8 @@ namespace KrathokKidsBit {
         Num_Sensor = Sensor_PIN.length
         LED_PIN = led_pin
         setLineLED(true)
+        // สร้าง Color_* จากค่าที่สอนไว้แล้ว เผื่อคาลิเบรตมาก่อนตั้งค่าเซ็นเซอร์
+        applyCal()
     }
 
     /**
@@ -1553,17 +1591,18 @@ namespace KrathokKidsBit {
             Background_Cal[_Sensor_PIN[j]] = Background_Cal[_Sensor_PIN[j]] / 20
         }
 
-        // เขียนทับค่าเดิมทุกครั้ง เพื่อให้สอนซ้ำได้โดยอาเรย์ไม่ยาวขึ้นเรื่อยๆ
-        Color_Line = calFor(Sensor_PIN, Line_Cal)
-        Color_Background = calFor(Sensor_PIN, Background_Cal)
-        Color_Line_Left = calFor(Sensor_Left, Line_Cal)
-        Color_Background_Left = calFor(Sensor_Left, Background_Cal)
-        Color_Line_Right = calFor(Sensor_Right, Line_Cal)
-        Color_Background_Right = calFor(Sensor_Right, Background_Cal)
-
-        let bad = separateCal(Color_Line, Color_Background)
-        if (separateCal(Color_Line_Left, Color_Background_Left)) bad = true
-        if (separateCal(Color_Line_Right, Color_Background_Right)) bad = true
+        // เก็บลงคลังตามหมายเลขช่อง เฉพาะช่องที่วัดในรอบนี้
+        // ช่องอื่นคงค่าเดิมไว้ จึงแยกคาลิเบรตหลายรอบได้ตามคู่มือ PT KidsBIT
+        let bad = false
+        for (let j = 0; j < _Num_Sensor; j++) {
+            let ch = _Sensor_PIN[j]
+            if (!validCh(ch)) continue
+            Cal_Line_Ch[ch] = Line_Cal[ch]
+            Cal_Bg_Ch[ch] = Background_Cal[ch]
+            Cal_Has_Ch[ch] = true
+            if (Line_Cal[ch] == Background_Cal[ch]) bad = true
+        }
+        applyCal()
 
         if (bad) {
             // เส้นกับพื้นให้ค่าเท่ากัน แปลว่าคาลิเบรตไม่ผ่าน (เสียงต่ำ 2 ครั้ง)
