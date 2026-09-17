@@ -90,7 +90,7 @@ namespace KrathokKidsBit {
      */
     function kidsLineReady(): void {
         if (Num_Sensor == 0) lineSetupStandard()
-        if (Color_Line.length < Num_Sensor && !kidsLineWarned) {
+        if (!lineCalibrated() && !kidsLineWarned) {
             kidsLineWarned = true
             music.playTone(330, music.beat(BeatFraction.Quarter))
             music.playTone(247, music.beat(BeatFraction.Half))

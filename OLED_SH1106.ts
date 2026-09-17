@@ -555,15 +555,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * สอนเซ็นเซอร์ครบแล้วหรือยัง
-     */
-    function oledLineCalibrated(): boolean {
-        return Sensor_PIN.length > 0
-            && Color_Line.length >= Sensor_PIN.length
-            && Color_Background.length >= Sensor_PIN.length
-    }
-
-    /**
      * แปลงค่าดิบเป็น 0-100 โดย 100 = อยู่บนเส้น
      * ถ้ายังไม่ได้สอนเซ็นเซอร์ จะย่อค่าดิบ 12 บิตมาแสดงแทน เพื่อให้ยังเห็นค่าเปลี่ยน
      */
@@ -630,7 +621,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledText(oledRawRow("C", Sensor_PIN), 0, 20, 1, OLED_Color.White)
         oledText(oledRawRow("R", Sensor_Right), 0, 28, 1, OLED_Color.White)
         oledText(oledPctRow("%", Sensor_PIN, Color_Line, Color_Background), 0, 40, 1, OLED_Color.White)
-        if (oledLineCalibrated()) {
+        if (lineCalibrated()) {
             oledText("POS " + GETPosition() + "/" + (Num_Sensor - 1) * 1000, 0, 52, 1, OLED_Color.White)
         }
         else {
@@ -658,7 +649,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
             oledUpdate()
             return
         }
-        if (oledLineCalibrated()) {
+        if (lineCalibrated()) {
             oledText("POS " + GETPosition(), 0, 0, 1, OLED_Color.White)
         }
         else {
