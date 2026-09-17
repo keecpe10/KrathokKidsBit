@@ -117,13 +117,16 @@ Use PTKidsBIT's SensorCalibrate block for calibration line follower sensor, left
 
 * Select ADC channels between `0` to `7` for calibrate sensor.
 
-The calibration process is as follows
-* Place the line follower sensor on the line, press Button A once and wait until the buzzer sounds.
-* Place left and right sensor on the line, press Button A once and wait until the buzzer sounds.
-* Place all sensor on the floor, press Button A once and wait until the buzzer sounds.
+Each call takes two button presses:
+* Place the selected sensors on the line, press Button A, wait for the tone.
+* Place the same sensors on the floor, press Button A, wait for the tone.
+* Two high tones mean the calibration passed. Two low tones mean the line and the floor read the same value, so it has to be redone.
+
+Calibration is stored per ADC channel, so it can be split across several calls and run in any order relative to `LINESensorSET`.
 
 ```blocks
-KrathokKidsBit.SensorCalibrate([1, 0, 7, 6])
+KrathokKidsBit.SensorCalibrate([0, 1, 2, 3, 4, 5])
+KrathokKidsBit.SensorCalibrate([6, 7])
 ```
 
 ### LINESensorSET Block
@@ -137,9 +140,9 @@ Use PTKidsBIT's LINESensorSET block for select the ADC channel connected to the 
 
 ```blocks
 KrathokKidsBit.LINESensorSET(
-    [1, 0, 7, 6],
-    [2],
-    [5],
+    [0, 1, 2, 3, 4, 5],
+    [6],
+    [7],
     LED_Pin.Disable
 )
 ```
@@ -287,20 +290,26 @@ KrathokKidsBit.lineToJunction(Kids_Junction.Center, 1, 40)
 
 อ่านผ่านชิป ADS7828 (ADC 8 ช่อง 12 บิต) ที่อยู่ I2C `0x48` — `SCL` → P19, `SDA` → P20
 
-ผังมาตรฐานของบล็อก `ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน`:
+ผังมาตรฐานของบล็อก `ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน` ตรงกับ **PTKidsBIT Education Robot Kit**:
 
 ```
-   ซ้าย ─────────────────────────► ขวา
+   ซ้าย ───────────────────────────────► ขวา
 
-   [2]    [1]  [0]  [7]  [6]    [5]
-    ▲     └──── กลาง 4 ตัว ────┘    ▲
-  ทางแยกซ้าย                 ทางแยกขวา
+   [6]   [0] [1] [2] [3] [4] [5]   [7]
+    ▲    └───── กลาง 6 ตัว ─────┘    ▲
+  ทางแยกซ้าย                    ทางแยกขวา
 ```
 
-- เซ็นเซอร์กลาง 4 ตัวใช้คำนวณตำแหน่งเส้น (0-3000 ศูนย์กลาง 1500) ป้อนให้ PID
+- เซ็นเซอร์กลาง 6 ตัวใช้คำนวณตำแหน่งเส้น (0-5000 ศูนย์กลาง 2500) ป้อนให้ PID
 - เซ็นเซอร์ซ้าย/ขวาใช้ตรวจทางแยกเท่านั้น ไม่เข้าสูตร PID
-- ช่อง 3 และ 4 ว่าง
-- **ลำดับในอาเรย์กลางคือลำดับทางกายภาพซ้าย→ขวา** ไม่ใช่เลขเรียง ถ้าต่อสายต่างจากนี้ ให้ใช้บล็อก `LINESensorSET` กำหนดเอง
+
+**ลำดับในอาเรย์กลางคือลำดับทางกายภาพซ้าย→ขวา** ไม่ใช่เลขเรียงเฉยๆ ถ้าหุ่นเลี้ยวผิดข้าง แปลว่าลำดับกลับด้าน ให้ใช้ `LINESensorSET` กำหนดเองแบบกลับลำดับ:
+
+```blocks
+KrathokKidsBit.LINESensorSET([5, 4, 3, 2, 1, 0], [6], [7], LED_Pin.Disable)
+```
+
+ตรวจลำดับได้เร็วๆ ด้วยบล็อก `จอ OLED กราฟแท่งเซ็นเซอร์เส้น` — วางเส้นใต้เซ็นเซอร์ตัวซ้ายสุด ถ้าแท่งที่สูงขึ้นอยู่ทางซ้ายของจอ แปลว่าลำดับถูกแล้ว
 
 ### ดูค่าเซ็นเซอร์บนจอ OLED
 
@@ -349,8 +358,8 @@ basic.forever(function () {
 
 ```blocks
 // แบบที่ 1 - ตั้งค่าก่อน แล้วคาลิเบรตรอบเดียว
-KrathokKidsBit.LINESensorSET([1, 0, 7, 6], [2], [5], LED_Pin.Disable)
-KrathokKidsBit.SensorCalibrate([1, 0, 7, 6, 2, 5])
+KrathokKidsBit.LINESensorSET([0, 1, 2, 3, 4, 5], [6], [7], LED_Pin.Disable)
+KrathokKidsBit.SensorCalibrate([0, 1, 2, 3, 4, 5, 6, 7])
 ```
 
 ```blocks
