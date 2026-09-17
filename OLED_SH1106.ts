@@ -532,6 +532,152 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     /**
      * Send the drawing buffer to the screen
      */
+    // ================= เซ็นเซอร์บนจอ =================
+
+    /**
+     * แปลงหมายเลขช่อง 0-7 เป็นคำสั่งอ่านของ ADS7828
+     */
+    function oledAdcCmd(ch: number): number {
+        let table = [
+            ADC_Read.ADC0, ADC_Read.ADC1, ADC_Read.ADC2, ADC_Read.ADC3,
+            ADC_Read.ADC4, ADC_Read.ADC5, ADC_Read.ADC6, ADC_Read.ADC7
+        ]
+        if (ch < 0 || ch > 7) return ADC_Read.ADC0
+        return table[ch]
+    }
+
+    /**
+     * อ่านค่าที่สอนไว้แบบปลอดภัย ถ้ายังไม่ได้สอนจะได้ 0 แทนการอ่านเกินขอบอาเรย์
+     */
+    function oledCal(arr: number[], i: number): number {
+        if (i < 0 || i >= arr.length) return 0
+        return arr[i]
+    }
+
+    /**
+     * สอนเซ็นเซอร์ครบแล้วหรือยัง
+     */
+    function oledLineCalibrated(): boolean {
+        return Sensor_PIN.length > 0
+            && Color_Line.length >= Sensor_PIN.length
+            && Color_Background.length >= Sensor_PIN.length
+    }
+
+    /**
+     * แปลงค่าดิบเป็น 0-100 โดย 100 = อยู่บนเส้น
+     * ถ้ายังไม่ได้สอนเซ็นเซอร์ จะย่อค่าดิบ 12 บิตมาแสดงแทน เพื่อให้ยังเห็นค่าเปลี่ยน
+     */
+    function oledSensorPct(ch: number, line: number, bg: number): number {
+        let raw = ADCRead(oledAdcCmd(ch))
+        let v = 0
+        if (line == bg) v = Math.idiv(raw * 100, 4095)
+        else v = Math.idiv(pins.map(raw, line, bg, 1000, 0), 10)
+        return Math.max(0, Math.min(100, v))
+    }
+
+    /**
+     * ค่าเซ็นเซอร์ทั้งแถวเป็นเปอร์เซ็นต์ เรียงซ้าย -> ขวา
+     */
+    function oledLineRow(): number[] {
+        let out: number[] = []
+        for (let i = 0; i < Sensor_Left.length; i++) {
+            out.push(oledSensorPct(Sensor_Left[i], oledCal(Color_Line_Left, i), oledCal(Color_Background_Left, i)))
+        }
+        for (let i = 0; i < Sensor_PIN.length; i++) {
+            out.push(oledSensorPct(Sensor_PIN[i], oledCal(Color_Line, i), oledCal(Color_Background, i)))
+        }
+        for (let i = 0; i < Sensor_Right.length; i++) {
+            out.push(oledSensorPct(Sensor_Right[i], oledCal(Color_Line_Right, i), oledCal(Color_Background_Right, i)))
+        }
+        return out
+    }
+
+    function oledRawRow(prefix: string, sensors: number[]): string {
+        let t = prefix
+        for (let i = 0; i < sensors.length; i++) {
+            t += " " + ADCRead(oledAdcCmd(sensors[i]))
+        }
+        return t
+    }
+
+    function oledPctRow(prefix: string, sensors: number[], line: number[], bg: number[]): string {
+        let t = prefix
+        for (let i = 0; i < sensors.length; i++) {
+            t += " " + oledSensorPct(sensors[i], oledCal(line, i), oledCal(bg, i))
+        }
+        return t
+    }
+
+    /**
+     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
+     * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
+     */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=60
+    //% block="จอ OLED แสดงค่าเซ็นเซอร์เส้น"
+    export function oledLineSensorValues(): void {
+        oledCheck()
+        oledBuf.fill(0)
+        oledDirty = 0xFF
+        if (Sensor_PIN.length == 0) {
+            oledText("NO SENSOR SETUP", 0, 24, 1, OLED_Color.White)
+            oledUpdate()
+            return
+        }
+        oledText("LINE SENSOR", 0, 0, 1, OLED_Color.White)
+        oledText(oledRawRow("L", Sensor_Left), 0, 12, 1, OLED_Color.White)
+        oledText(oledRawRow("C", Sensor_PIN), 0, 20, 1, OLED_Color.White)
+        oledText(oledRawRow("R", Sensor_Right), 0, 28, 1, OLED_Color.White)
+        oledText(oledPctRow("%", Sensor_PIN, Color_Line, Color_Background), 0, 40, 1, OLED_Color.White)
+        if (oledLineCalibrated()) {
+            oledText("POS " + GETPosition() + "/" + (Num_Sensor - 1) * 1000, 0, 52, 1, OLED_Color.White)
+        }
+        else {
+            oledText("NOT CALIBRATED", 0, 52, 1, OLED_Color.White)
+        }
+        oledUpdate()
+    }
+
+    /**
+     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นกราฟแท่ง เรียงตามตำแหน่งจริงซ้าย -> ขวา
+     * แท่งยิ่งสูง = ยิ่งเห็นเส้นชัด แถบทึบใต้แท่ง = เซ็นเซอร์ตัวนั้นอยู่บนเส้น
+     */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=59
+    //% block="จอ OLED กราฟแท่งเซ็นเซอร์เส้น"
+    export function oledLineSensorBars(): void {
+        oledCheck()
+        oledBuf.fill(0)
+        oledDirty = 0xFF
+        let pct = oledLineRow()
+        let n = pct.length
+        if (n == 0) {
+            oledText("NO SENSOR SETUP", 0, 24, 1, OLED_Color.White)
+            oledUpdate()
+            return
+        }
+        if (oledLineCalibrated()) {
+            oledText("POS " + GETPosition(), 0, 0, 1, OLED_Color.White)
+        }
+        else {
+            oledText("NOT CALIBRATED", 0, 0, 1, OLED_Color.White)
+        }
+        let slot = Math.idiv(OLED_W, n)
+        let bw = Math.max(3, slot - 3)
+        let base = 56
+        let maxH = 44
+        for (let i = 0; i < n; i++) {
+            let x = i * slot + Math.idiv(slot - bw, 2)
+            let h = Math.idiv(pct[i] * maxH, 100)
+            if (h > 0) oledFillRectRaw(x, base - h, bw, h, OLED_Color.White)
+            oledHLine(x, base, bw, OLED_Color.White)
+            if (pct[i] >= 50) oledFillRectRaw(x, base + 3, bw, 4, OLED_Color.White)
+        }
+        oledUpdate()
+    }
+
     //% group="เริ่มต้นจอ"
     //% subcategory="จอ OLED"
     //% weight=98
