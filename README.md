@@ -245,18 +245,18 @@ KrathokKidsBit=github:keecpe10/KrathokKidsBit
 
 ### บล็อกเดิม (ขั้นสูง)
 
-บล็อกเดิมภาษาอังกฤษ (KP/KD, PID, ADC) ยังใช้ได้เหมือนเดิม อยู่ใน **เพิ่มเติม... (Advanced)** แยกเป็น 4 กลุ่มย่อย
+บล็อกเดิมภาษาอังกฤษ (KP/KD, PID, ADC) ยังใช้ได้เหมือนเดิม ซ่อนอยู่ใน **more... (Advanced)** ของหมวด KrathokKidsBit แยกเป็น 8 กลุ่ม เพื่อไม่ให้ปนกับบล็อกของนักเรียน
 
-| กลุ่มย่อย | กลุ่มบล็อก | บล็อก |
-|---|---|---|
-| **Motor** | Motor Basic | Motor Stop · Spin · Turn · motorGo · motorWrite |
-| | Motor + IMU | goWithDegreesTime · goWithDegrees · spinDegrees · turnDegrees |
-| **Servo** | Servo Advanced | servoWrite |
-| **Sensor** | IMU Angle | anglesRead · setAngleOffset |
-| | Ultrasonic | distanceRead |
-| | ADC | ADCRead |
-| **Line PID** | Line Setup | LINESensorSET · ValueSensorSET · SensorCalibrate · PrintSensorValue · GETPosition |
-| | Line Follow PID | Follower · ForwardTIME · ForwardLINE · ForwardLINECount · TurnLINE |
+| กลุ่มบล็อก | บล็อก |
+|---|---|
+| Motor Basic | Motor Stop · Spin · Turn · motorGo · motorWrite |
+| Motor + IMU | goWithDegreesTime · goWithDegrees · spinDegrees · turnDegrees |
+| Servo Advanced | servoWrite |
+| IMU Angle | anglesRead · setAngleOffset |
+| Ultrasonic | distanceRead |
+| ADC | ADCRead |
+| Line Setup | LINESensorSET · ValueSensorSET · SensorCalibrate · PrintSensorValue · GETPosition |
+| Line Follow PID | Follower · ForwardTIME · ForwardLINE · ForwardLINECount · TurnLINE |
 
 ตัวอย่าง: หุ่นยนต์หลบสิ่งกีดขวาง
 

@@ -185,7 +185,7 @@ enum Angle {
 
 //% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
 //% groups='["เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
-//% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED", "Motor", "Servo", "Sensor", "Line PID"]'
+//% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
     function initPCA(): void {
         let i2cData = pins.createBuffer(2)
@@ -296,7 +296,6 @@ namespace KrathokKidsBit {
      * Stop all Motor
      */
     //% group="Motor Basic"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=100
     //% block="Motor Stop"
@@ -312,7 +311,6 @@ namespace KrathokKidsBit {
      * Forward or Backward with degrees.
      */
     //% group="Motor + IMU"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=90
     //% block="Direction %Forward_Direction|Time %time|Go Degree %degrees|Min Speed %min_speed|Max Speed %max_speed|KP %kp|KD %kd"
@@ -371,7 +369,6 @@ namespace KrathokKidsBit {
      * Forward or Backward with degrees.
      */
     //% group="Motor + IMU"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=89
     //% block="Direction %Forward_Direction|Go Degree %degrees|Min Speed %min_speed|Max Speed %max_speed|KP %kp|KD %kd"
@@ -423,7 +420,6 @@ namespace KrathokKidsBit {
      * Spin the Robot to Degrees.
      */
     //% group="Motor + IMU"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=88
     //% block="Spin Degree %degrees|Low Degree\n %low_degrees|Min Speed\n\n %min_speed|Max Speed\n\n %max_speed"
@@ -478,7 +474,6 @@ namespace KrathokKidsBit {
      * Turn the Robot to Degrees.
      */
     //% group="Motor + IMU"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=87
     //% block="Direction\n\n %Forward_Direction|Turn Degree %degrees|Low Degree\n %low_degrees|Min Speed\n\n %min_speed|Max Speed\n\n %max_speed"
@@ -539,7 +534,6 @@ namespace KrathokKidsBit {
      * Spin the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
     //% group="Motor Basic"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=99
     //% block="Spin %_Spin|Speed %Speed"
@@ -558,7 +552,6 @@ namespace KrathokKidsBit {
      * Turn the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
     //% group="Motor Basic"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=98
     //% block="Turn %_Turn|Speed %Speed"
@@ -577,7 +570,6 @@ namespace KrathokKidsBit {
      * Control motors speed both at the same time. The speed motors is adjustable between -100 to 100.
      */
     //% group="Motor Basic"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=97
     //% block="Motor 1 %Motor1|Motor 2 %Motor2|Motor 3 %Motor3|Motor 4 %Motor4"
@@ -653,7 +645,6 @@ namespace KrathokKidsBit {
      * Control motor speed 1 channel. The speed motor is adjustable between -100 to 100.
      */
     //% group="Motor Basic"
-    //% subcategory="Motor"
     //% advanced=true
     //% weight=96
     //% block="Motor %Motor_Write|Speed %Speed"
@@ -719,7 +710,6 @@ namespace KrathokKidsBit {
      * Control Servo Motor 0 - 180 Degrees
      */
     //% group="Servo Advanced"
-    //% subcategory="Servo"
     //% advanced=true
     //% weight=100
     //% block="Servo %Servo_Write|Degree %Degree"
@@ -756,7 +746,6 @@ namespace KrathokKidsBit {
      * Read Angles from IMU
      */
     //% group="IMU Angle"
-    //% subcategory="Sensor"
     //% advanced=true
     //% weight=100
     //% block="Read Angle %Angle"
@@ -782,7 +771,6 @@ namespace KrathokKidsBit {
      * Set IMU offset to 0
      */
     //% group="IMU Angle"
-    //% subcategory="Sensor"
     //% advanced=true
     //% weight=99
     //% block="Set Angle Offset %Angle"
@@ -802,7 +790,6 @@ namespace KrathokKidsBit {
      * Read Distance from Ultrasonic Sensor
      */
     //% group="Ultrasonic"
-    //% subcategory="Sensor"
     //% advanced=true
     //% weight=90
     //% block="Read Distance Triger %Trigger_PIN|Echo %Echo_PIN"
@@ -866,7 +853,6 @@ namespace KrathokKidsBit {
      * Read Analog from ADC Channel
      */
     //% group="ADC"
-    //% subcategory="Sensor"
     //% advanced=true
     //% weight=80
     //% block="Read ADC %ADC_Read"
@@ -880,7 +866,6 @@ namespace KrathokKidsBit {
      * Turn Left or Right Follower Line Mode
      */
     //% group="Line Follow PID"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=86
     //% block="TurnLINE %turn|Speed\n %speed|Sensor %sensor|Fast Time\n %time|Break Time %break_delay"
@@ -958,7 +943,6 @@ namespace KrathokKidsBit {
      * Line Follower Forward Timer
      */
     //% group="Line Follow PID"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=89
     //% block="Direction %Forward_Direction|Time %time|Min Speed %base_speed|Max Speed %max_speed|KP %kp|KD %kd"
@@ -1007,7 +991,6 @@ namespace KrathokKidsBit {
      * Line Follower Forward with Counter Line
      */
     //% group="Line Follow PID"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=87
     //% block="Direction %Forward_Direction|Find %Find_Line|Count Line %count|Min Speed\n %base_speed|Max Speed\n %max_speed|Break Time %break_time|KP %kp|KD %kd"
@@ -1031,7 +1014,6 @@ namespace KrathokKidsBit {
      * Line Follower Forward
      */
     //% group="Line Follow PID"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=88
     //% block="Direction %Forward_Direction|Find %Find_Line|Min Speed\n %base_speed|Max Speed\n %max_speed|Break Time %break_time|KP %kp|KD %kd"
@@ -1270,7 +1252,6 @@ namespace KrathokKidsBit {
      * Basic Line Follower
      */
     //% group="Line Follow PID"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=90
     //% block="Min Speed %base_speed|Max Speed %max_speed|KP %kp|KD %kd"
@@ -1307,7 +1288,6 @@ namespace KrathokKidsBit {
      * Get Position Line
      */
     //% group="Line Setup"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=96
     //% block="GETPosition"
@@ -1368,7 +1348,6 @@ namespace KrathokKidsBit {
      * Print Sensor Value
      */
     //% group="Line Setup"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=97
     //% block="PrintSensorValue"
@@ -1409,7 +1388,6 @@ namespace KrathokKidsBit {
      * Set Value Sensor
      */
     //% group="Line Setup"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=99
     //% block="SETColorLine\n\n $line_center|Line Left\n\n\n\n\n $line_left|Line Right\n\n\n\n $line_right|SETColorGround $ground_center|Ground Left\n\n\n $ground_left|Ground Right\n\n $ground_right"
@@ -1426,7 +1404,6 @@ namespace KrathokKidsBit {
      * Set Line Sensor Pin
      */
     //% group="Line Setup"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=100
     //% block="LINESensorSET $adc_pin|Sensor Left\n\n $sensor_left|Sensor Right\n $sensor_right|ON OFF Sensor $led_pin"
@@ -1442,7 +1419,6 @@ namespace KrathokKidsBit {
      * Calibrate Sensor
      */
     //% group="Line Setup"
-    //% subcategory="Line PID"
     //% advanced=true
     //% weight=98
     //% block="SensorCalibrate $adc_pin"
