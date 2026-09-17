@@ -174,6 +174,13 @@ enum Turn_Line {
     Right
 }
 
+enum Line_Follow_Mode {
+    //% block="ตามเส้นที่สอนไว้"
+    Normal = 0,
+    //% block="สลับเส้นกับพื้น"
+    Invert = 1
+}
+
 enum Angle {
     //% block="Yaw"
     Yaw,
@@ -187,6 +194,54 @@ enum Angle {
 //% groups='["เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
 //% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
+    /**
+     * รอจนกดปุ่ม A แล้วปล่อย ป้องกันการกดค้างข้ามไปยังขั้นตอนถัดไป
+     */
+    function waitButtonA(): void {
+        while (input.buttonIsPressed(Button.A)) basic.pause(20)
+        while (!input.buttonIsPressed(Button.A)) basic.pause(20)
+        while (input.buttonIsPressed(Button.A)) basic.pause(20)
+        basic.pause(100)
+    }
+
+    /**
+     * เปิด/ปิดไฟ LED ของแผงเซ็นเซอร์เส้น ตามขาที่ตั้งไว้ใน LINESensorSET
+     */
+    function setLineLED(on: boolean): void {
+        if (LED_PIN == LED_Pin.Disable) return
+        let pin = DigitalPin.P1
+        if (LED_PIN == LED_Pin.P2) pin = DigitalPin.P2
+        else if (LED_PIN == LED_Pin.P8) pin = DigitalPin.P8
+        else if (LED_PIN == LED_Pin.P12) pin = DigitalPin.P12
+        pins.digitalWritePin(pin, on ? 1 : 0)
+    }
+
+    /**
+     * จับคู่ค่าคาลิเบรต (เก็บตามหมายเลขช่อง ADC) เข้ากับลำดับเซ็นเซอร์ที่ตั้งไว้
+     */
+    function calFor(sensors: number[], cal: number[]): number[] {
+        let out: number[] = []
+        for (let i = 0; i < sensors.length; i++) {
+            out.push(cal[sensors[i]])
+        }
+        return out
+    }
+
+    /**
+     * ถ้าค่าเส้นกับพื้นเท่ากัน pins.map จะหารด้วยศูนย์ จึงถ่างออก 1 หน่วย
+     * คืนค่า true เมื่อเจอคู่ที่แยกไม่ออก (คาลิเบรตไม่ผ่าน)
+     */
+    function separateCal(line: number[], background: number[]): boolean {
+        let bad = false
+        for (let i = 0; i < line.length; i++) {
+            if (line[i] == background[i]) {
+                background[i] = line[i] + 1
+                bad = true
+            }
+        }
+        return bad
+    }
+
     function initPCA(): void {
         let i2cData = pins.createBuffer(2)
         initI2C = true
@@ -1413,6 +1468,30 @@ namespace KrathokKidsBit {
         Sensor_Right = sensor_right
         Num_Sensor = Sensor_PIN.length
         LED_PIN = led_pin
+        setLineLED(true)
+    }
+
+    /**
+     * Turn the line sensor LED on or off (pick the pin with LINESensorSET first)
+     */
+    //% group="Line Setup"
+    //% advanced=true
+    //% weight=95
+    //% block="Line Sensor LED %on"
+    //% on.shadow="toggleOnOff"
+    export function LineSensorLED(on: boolean): void {
+        setLineLED(on)
+    }
+
+    /**
+     * Follow the taught line, or swap line and background
+     */
+    //% group="Line Setup"
+    //% advanced=true
+    //% weight=94
+    //% block="Line Mode %mode"
+    export function SetLineMode(mode: Line_Follow_Mode): void {
+        Line_Mode = mode
     }
 
     /**
@@ -1435,69 +1514,66 @@ namespace KrathokKidsBit {
         ]
         let _Sensor_PIN = adc_pin
         let _Num_Sensor = _Sensor_PIN.length
+
+        // เก็บค่าคาลิเบรตตาม "หมายเลขช่อง ADC" (0-7) ไม่ใช่ตามลำดับใน adc_pin
+        // เพื่อให้จับคู่กับ Sensor_PIN / Sensor_Left / Sensor_Right ได้ถูกต้อง
+        // ไม่ว่าจะส่ง adc_pin มาเรียงลำดับแบบไหน
         let Line_Cal = [0, 0, 0, 0, 0, 0, 0, 0]
         let Background_Cal = [0, 0, 0, 0, 0, 0, 0, 0]
 
+        setLineLED(true)
+
         music.playTone(587, music.beat(BeatFraction.Quarter))
         music.playTone(784, music.beat(BeatFraction.Quarter))
+
         ////Calibrate Follower Line
-        while (!input.buttonIsPressed(Button.A));
+        waitButtonA()
         music.playTone(784, music.beat(BeatFraction.Quarter))
         for (let i = 0; i < 20; i++) {
             for (let j = 0; j < _Num_Sensor; j++) {
-                Line_Cal[j] += ADCRead(ADC_PIN[_Sensor_PIN[j]])
+                Line_Cal[_Sensor_PIN[j]] += ADCRead(ADC_PIN[_Sensor_PIN[j]])
             }
             basic.pause(50)
         }
-        for (let i = 0; i < _Num_Sensor; i++) {
-            Line_Cal[i] = Line_Cal[i] / 20
-            for (let j = 0; j < Sensor_Left.length; j++) {
-                if (Sensor_Left[j] == _Sensor_PIN[i]) {
-                    Color_Line_Left.push(Line_Cal[i])
-                }
-            }
-            for (let j = 0; j < Sensor_PIN.length; j++) {
-                if (Sensor_PIN[j] == _Sensor_PIN[i]) {
-                    Color_Line.push(Line_Cal[i])
-                }
-            }
-            for (let j = 0; j < Sensor_Right.length; j++) {
-                if (Sensor_Right[j] == _Sensor_PIN[i]) {
-                    Color_Line_Right.push(Line_Cal[i])
-                }
-            }
+        for (let j = 0; j < _Num_Sensor; j++) {
+            Line_Cal[_Sensor_PIN[j]] = Line_Cal[_Sensor_PIN[j]] / 20
         }
         music.playTone(784, music.beat(BeatFraction.Quarter))
 
         ////Calibrate Background
-        while (!input.buttonIsPressed(Button.A));
+        waitButtonA()
         music.playTone(784, music.beat(BeatFraction.Quarter))
         for (let i = 0; i < 20; i++) {
             for (let j = 0; j < _Num_Sensor; j++) {
-                Background_Cal[j] += ADCRead(ADC_PIN[_Sensor_PIN[j]])
+                Background_Cal[_Sensor_PIN[j]] += ADCRead(ADC_PIN[_Sensor_PIN[j]])
             }
             basic.pause(50)
         }
-        for (let i = 0; i < _Num_Sensor; i++) {
-            Background_Cal[i] = Background_Cal[i] / 20
-            for (let j = 0; j < Sensor_Left.length; j++) {
-                if (Sensor_Left[j] == _Sensor_PIN[i]) {
-                    Color_Background_Left.push(Background_Cal[i])
-                }
-            }
-            for (let j = 0; j < Sensor_PIN.length; j++) {
-                if (Sensor_PIN[j] == _Sensor_PIN[i]) {
-                    Color_Background.push(Background_Cal[i])
-                }
-            }
-            for (let j = 0; j < Sensor_Right.length; j++) {
-                if (Sensor_Right[j] == _Sensor_PIN[i]) {
-                    Color_Background_Right.push(Background_Cal[i])
-                }
-            }
+        for (let j = 0; j < _Num_Sensor; j++) {
+            Background_Cal[_Sensor_PIN[j]] = Background_Cal[_Sensor_PIN[j]] / 20
         }
-        music.playTone(784, music.beat(BeatFraction.Quarter))
-        music.playTone(587, music.beat(BeatFraction.Quarter))
+
+        // เขียนทับค่าเดิมทุกครั้ง เพื่อให้สอนซ้ำได้โดยอาเรย์ไม่ยาวขึ้นเรื่อยๆ
+        Color_Line = calFor(Sensor_PIN, Line_Cal)
+        Color_Background = calFor(Sensor_PIN, Background_Cal)
+        Color_Line_Left = calFor(Sensor_Left, Line_Cal)
+        Color_Background_Left = calFor(Sensor_Left, Background_Cal)
+        Color_Line_Right = calFor(Sensor_Right, Line_Cal)
+        Color_Background_Right = calFor(Sensor_Right, Background_Cal)
+
+        let bad = separateCal(Color_Line, Color_Background)
+        if (separateCal(Color_Line_Left, Color_Background_Left)) bad = true
+        if (separateCal(Color_Line_Right, Color_Background_Right)) bad = true
+
+        if (bad) {
+            // เส้นกับพื้นให้ค่าเท่ากัน แปลว่าคาลิเบรตไม่ผ่าน (เสียงต่ำ 2 ครั้ง)
+            music.playTone(262, music.beat(BeatFraction.Half))
+            music.playTone(196, music.beat(BeatFraction.Half))
+        }
+        else {
+            music.playTone(784, music.beat(BeatFraction.Quarter))
+            music.playTone(587, music.beat(BeatFraction.Quarter))
+        }
         basic.pause(500)
     }
 

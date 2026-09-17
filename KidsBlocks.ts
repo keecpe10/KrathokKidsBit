@@ -82,6 +82,21 @@ enum Kids_Sensor {
 namespace KrathokKidsBit {
     let kidsKP = 0.05
     let kidsKD = 0.1
+    let kidsLineWarned = false
+
+    /**
+     * ตั้งค่าเซ็นเซอร์ให้อัตโนมัติถ้ายังไม่ได้ตั้ง และเตือนถ้ายังไม่ได้สอนเซ็นเซอร์
+     * (เตือนครั้งเดียว เพื่อไม่ให้ดังซ้ำเมื่อเรียกอยู่ในลูป)
+     */
+    function kidsLineReady(): void {
+        if (Num_Sensor == 0) lineSetupStandard()
+        if (Color_Line.length < Num_Sensor && !kidsLineWarned) {
+            kidsLineWarned = true
+            music.playTone(330, music.beat(BeatFraction.Quarter))
+            music.playTone(247, music.beat(BeatFraction.Half))
+            basic.showString("CAL")
+        }
+    }
 
     function kidsClamp(v: number, lo: number, hi: number): number {
         return Math.max(lo, Math.min(hi, v))
@@ -208,14 +223,9 @@ namespace KrathokKidsBit {
         for (let p of Sensor_PIN) all.push(p)
         for (let p of Sensor_Left) if (all.indexOf(p) < 0) all.push(p)
         for (let p of Sensor_Right) if (all.indexOf(p) < 0) all.push(p)
-        // ล้างค่าเก่า เพื่อให้สอนใหม่ได้หลายครั้ง
-        Color_Line = []
-        Color_Line_Left = []
-        Color_Line_Right = []
-        Color_Background = []
-        Color_Background_Left = []
-        Color_Background_Right = []
+        // SensorCalibrate เขียนทับค่าเดิมให้เองแล้ว จึงสอนซ้ำได้หลายครั้ง
         SensorCalibrate(all)
+        kidsLineWarned = false
     }
 
     /**
@@ -227,6 +237,7 @@ namespace KrathokKidsBit {
     //% block="เดินตามเส้น ความเร็ว $speed"
     //% speed.min=0 speed.max=100 speed.defl=40
     export function lineFollow(speed: number): void {
+        kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         Follower(speed, Math.min(100, speed * 2), kidsKP, kidsKD)
     }
@@ -241,6 +252,7 @@ namespace KrathokKidsBit {
     //% count.min=1 count.defl=1
     //% speed.min=0 speed.max=100 speed.defl=40
     export function lineToJunction(junction: Kids_Junction, count: number, speed: number): void {
+        kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         let find = junction == Kids_Junction.Left ? Find_Line.Left : (junction == Kids_Junction.Right ? Find_Line.Right : Find_Line.Center)
         ForwardLINECount(Forward_Direction.Forward, find, Math.max(1, Math.floor(count)), speed, Math.min(100, speed * 2), 20, kidsKP, kidsKD)
@@ -256,6 +268,7 @@ namespace KrathokKidsBit {
     //% seconds.min=0 seconds.defl=1
     //% speed.min=0 speed.max=100 speed.defl=40
     export function lineFollowFor(seconds: number, speed: number): void {
+        kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         ForwardTIME(Forward_Direction.Forward, Math.max(0, seconds) * 1000, speed, Math.min(100, speed * 2), kidsKP, kidsKD)
     }
@@ -269,13 +282,36 @@ namespace KrathokKidsBit {
     //% block="เลี้ยว $dir จนเจอเส้น ความเร็ว $speed"
     //% speed.min=0 speed.max=100 speed.defl=50
     export function lineTurn(dir: Kids_LeftRight, speed: number): void {
-        if (Num_Sensor == 0) lineSetupStandard()
+        kidsLineReady()
         let half = Math.max(1, Math.idiv(Num_Sensor, 2))
         if (dir == Kids_LeftRight.Left) {
             TurnLINE(Turn_Line.Left, kidsClamp(speed, 0, 100), half, 200, 20)
         } else {
             TurnLINE(Turn_Line.Right, kidsClamp(speed, 0, 100), Math.min(Num_Sensor, half + 1), 200, 20)
         }
+    }
+
+    /**
+     * ปกติให้เดินตามเส้นที่สอนไว้ ถ้าสอนสลับกัน (จำพื้นเป็นเส้น) ให้เลือก "สลับเส้นกับพื้น"
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=87
+    //% block="ใช้เส้นแบบ $mode"
+    export function lineModeSet(mode: Line_Follow_Mode): void {
+        SetLineMode(mode)
+    }
+
+    /**
+     * เปิดหรือปิดไฟ LED ของแผงเซ็นเซอร์เส้น
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=86
+    //% block="ไฟเซ็นเซอร์เส้น $on"
+    //% on.shadow="toggleOnOff"
+    export function lineLED(on: boolean): void {
+        LineSensorLED(on)
     }
 
     /**
