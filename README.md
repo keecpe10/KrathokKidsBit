@@ -244,7 +244,7 @@ KrathokKidsBit=github:keecpe10/KrathokKidsBit
 | **จอ OLED** | เริ่มต้นจอ | เริ่มใช้จอ · ล้างจอ · แสดงภาพที่วาด · อัปเดตทันที เปิด/ปิด |
 | | ข้อความและตัวเลข | แสดงข้อความ/ตัวเลข บรรทัดที่ 1-8 · แสดง ชื่อ = ค่า · แสดงตัวใหญ่ · เขียนข้อความ/ตัวเลขที่ x,y |
 | | วาดรูป | วาดจุด · วาดเส้นตรง · วาดสี่เหลี่ยม · วาดวงกลม · แถบพลัง |
-| | ตั้งค่าจอ | กลับสีทั้งจอ · ความสว่าง · เปิด/ปิดจอ |
+| | ตั้งค่าจอ | กลับสีทั้งจอ · ความสว่าง · เปิด/ปิดจอ · หมุนจอ 180 องศา |
 | | เซ็นเซอร์บนจอ | แสดงค่าเซ็นเซอร์เส้น · แสดงค่าเซ็นเซอร์รายช่อง · กราฟแท่งเซ็นเซอร์เส้น |
 
 ### บล็อกเดิม (ขั้นสูง)
@@ -454,6 +454,14 @@ KrathokKidsBit.oledShowLine("KrathokKidsBit", 1)
 basic.forever(function () {
     KrathokKidsBit.oledShowValue("ADC0", KrathokKidsBit.kidsSensor(Kids_Sensor.ADC0), 3)
 })
+```
+
+ถ้าติดตั้งจอกลับหัว ใช้ `จอ OLED หมุนจอ 180 องศา` กลับภาพได้ วางไว้ก่อน `เริ่มใช้จอ OLED` ก็ได้ ค่าจะไม่หายตอนจอเริ่มทำงาน
+
+```blocks
+KrathokKidsBit.oledRotate180(true)
+KrathokKidsBit.oledInit(OLED_Address.Addr_0x3C)
+KrathokKidsBit.oledShowLine("KrathokKidsBit", 1)
 ```
 
 Tip (จอ OLED > เริ่มต้นจอ): turn `อัปเดตทันที` OFF, draw several shapes, then use `แสดงภาพที่วาด` once for faster drawing without flicker.

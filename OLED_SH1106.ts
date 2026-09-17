@@ -42,6 +42,7 @@ namespace KrathokKidsBit {
     let oledAddr = 0x3C
     let oledReady = false
     let oledAuto = true
+    let oledFlip180 = false
     let oledDirty = 0
     let oledBuf: Buffer = null
     let oledCmd1: Buffer = null
@@ -76,6 +77,23 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         pins.i2cWriteBuffer(oledAddr, oledCmd2, false)
     }
 
+    /**
+     * กำหนดทิศทางการวางภาพของ SH1106
+     * 0xA1/0xC8 = ปกติ, 0xA0/0xC0 = กลับหัว (หมุน 180 องศา)
+     * แผงจอ 128 จุดถูกต่อไว้กลาง RAM 132 คอลัมน์ (SEG2-SEG129)
+     * ระยะเยื้อง OLED_PAGE_OFFSET จึงเท่ากับ 2 เท่ากันทั้งสองทิศทาง
+     */
+    function oledApplyRotation(): void {
+        if (oledFlip180) {
+            oledCommand(0xA0)        // segment remap ปกติ
+            oledCommand(0xC0)        // COM scan เพิ่มขึ้น
+        }
+        else {
+            oledCommand(0xA1)        // segment remap กลับ
+            oledCommand(0xC8)        // COM scan ลดลง
+        }
+    }
+
     function oledBegin(addr: number): void {
         oledAddr = addr
         if (!oledBuf) {
@@ -93,8 +111,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledCommand2(0xD3, 0x00)     // display offset
         oledCommand(0x40)            // start line
         oledCommand2(0xAD, 0x8B)     // DC/DC on
-        oledCommand(0xA1)            // segment remap
-        oledCommand(0xC8)            // COM scan dec
+        oledApplyRotation()          // ทิศทางจอ ตามค่าที่ตั้งไว้
         oledCommand2(0xDA, 0x12)     // COM pins
         oledCommand2(0x81, 0xFF)     // contrast
         oledCommand2(0xD9, 0x1F)     // precharge
@@ -506,6 +523,23 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     /**
      * Turn display ON or OFF (keeps screen memory)
      */
+    /**
+     * หมุนภาพบนจอ 180 องศา สำหรับตอนติดตั้งจอกลับหัว
+     * ตั้งค่าไว้ได้ก่อนเรียก "เริ่มใช้จอ OLED" ค่าจะไม่หายเมื่อจอเริ่มทำงาน
+     */
+    //% group="ตั้งค่าจอ"
+    //% subcategory="จอ OLED"
+    //% weight=67
+    //% block="จอ OLED หมุนจอ 180 องศา %on"
+    //% on.shadow="toggleOnOff"
+    export function oledRotate180(on: boolean): void {
+        oledFlip180 = on
+        if (!oledReady) return
+        oledApplyRotation()
+        oledDirty = 0xFF
+        oledUpdate()
+    }
+
     //% group="ตั้งค่าจอ"
     //% subcategory="จอ OLED"
     //% weight=68
