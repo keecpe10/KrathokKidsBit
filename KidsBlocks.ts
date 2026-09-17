@@ -99,10 +99,10 @@ namespace KrathokKidsBit {
      * สั่งหุ่นยนต์เคลื่อนที่ไปเรื่อยๆ จนกว่าจะสั่งหยุด
      * @param speed ความเร็ว 0-100
      */
-    //% group="เคลื่อนที่"
+    //% group="เคลื่อนที่พื้นฐาน"
+    //% weight=100
     //% block="หุ่นยนต์ $move ความเร็ว $speed"
     //% speed.min=0 speed.max=100 speed.defl=50
-    //% weight=100
     export function robotMove(move: Kids_Move, speed: number): void {
         speed = kidsClamp(speed, 0, 100)
         switch (move) {
@@ -118,11 +118,11 @@ namespace KrathokKidsBit {
     /**
      * สั่งหุ่นยนต์เคลื่อนที่ตามเวลา (วินาที) แล้วหยุด
      */
-    //% group="เคลื่อนที่"
+    //% group="เคลื่อนที่พื้นฐาน"
+    //% weight=99
     //% block="หุ่นยนต์ $move ความเร็ว $speed นาน $seconds วินาที"
     //% speed.min=0 speed.max=100 speed.defl=50
     //% seconds.min=0 seconds.defl=1
-    //% weight=99
     export function robotMoveFor(move: Kids_Move, speed: number, seconds: number): void {
         robotMove(move, speed)
         basic.pause(Math.max(0, seconds) * 1000)
@@ -132,9 +132,9 @@ namespace KrathokKidsBit {
     /**
      * หยุดหุ่นยนต์
      */
-    //% group="เคลื่อนที่"
-    //% block="หุ่นยนต์หยุด"
+    //% group="เคลื่อนที่พื้นฐาน"
     //% weight=98
+    //% block="หุ่นยนต์หยุด"
     export function robotStop(): void {
         motorStop()
     }
@@ -142,11 +142,11 @@ namespace KrathokKidsBit {
     /**
      * กำหนดความเร็วล้อซ้ายและล้อขวาเอง (ค่าติดลบ = หมุนถอยหลัง)
      */
-    //% group="เคลื่อนที่"
+    //% group="เคลื่อนที่แม่นยำ"
+    //% weight=95
     //% block="ล้อซ้าย $left ล้อขวา $right"
     //% left.min=-100 left.max=100 left.defl=50
     //% right.min=-100 right.max=100 right.defl=50
-    //% weight=97
     export function robotWheels(left: number, right: number): void {
         left = kidsClamp(left, -100, 100)
         right = kidsClamp(right, -100, 100)
@@ -156,11 +156,11 @@ namespace KrathokKidsBit {
     /**
      * หมุนตัวตามจำนวนองศา โดยใช้เซ็นเซอร์ทิศทาง (IMU)
      */
-    //% group="เคลื่อนที่"
+    //% group="เคลื่อนที่แม่นยำ"
+    //% weight=96
     //% block="หุ่นยนต์หมุน $dir $degrees องศา ความเร็ว $speed"
     //% degrees.min=0 degrees.max=180 degrees.defl=90
     //% speed.min=20 speed.max=100 speed.defl=60
-    //% weight=96
     export function robotSpinDegrees(dir: Kids_LeftRight, degrees: number, speed: number): void {
         degrees = kidsClamp(Math.abs(degrees), 0, 180)
         let now = anglesRead(Angle.Yaw)
@@ -171,11 +171,11 @@ namespace KrathokKidsBit {
     /**
      * เดินตรงไม่เบี้ยว ตามเวลา (ใช้เซ็นเซอร์ทิศทาง IMU ช่วยคุมทิศ)
      */
-    //% group="เคลื่อนที่"
+    //% group="เคลื่อนที่แม่นยำ"
+    //% weight=97
     //% block="หุ่นยนต์ $dir ตรงๆ ความเร็ว $speed นาน $seconds วินาที"
     //% speed.min=0 speed.max=100 speed.defl=50
     //% seconds.min=0 seconds.defl=1
-    //% weight=95
     export function robotStraightFor(dir: Kids_Direction, speed: number, seconds: number): void {
         let heading = anglesRead(Angle.Yaw)
         let d = dir == Kids_Direction.Forward ? Forward_Direction.Forward : Forward_Direction.Backward
@@ -187,9 +187,10 @@ namespace KrathokKidsBit {
     /**
      * ตั้งค่าเซ็นเซอร์เส้นแบบมาตรฐาน: เซ็นเซอร์กลาง ช่อง 1,0,7,6 / ซ้าย ช่อง 2 / ขวา ช่อง 5
      */
-    //% group="เดินตามเส้น"
-    //% block="ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน"
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
     //% weight=90
+    //% block="ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน"
     export function lineSetupStandard(): void {
         LINESensorSET([1, 0, 7, 6], [2], [5], LED_Pin.Disable)
     }
@@ -197,9 +198,10 @@ namespace KrathokKidsBit {
     /**
      * สอนเซ็นเซอร์: เสียงปี๊บ → วางเซ็นเซอร์บนเส้น กดปุ่ม A → วางบนพื้น กดปุ่ม A → เสียงปี๊บ 2 ครั้ง = เสร็จ
      */
-    //% group="เดินตามเส้น"
-    //% block="สอนเซ็นเซอร์รู้จักเส้นและพื้น (กดปุ่ม A)"
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
     //% weight=89
+    //% block="สอนเซ็นเซอร์รู้จักเส้นและพื้น (กดปุ่ม A)"
     export function lineCalibrate(): void {
         if (Sensor_PIN.length == 0) lineSetupStandard()
         let all: number[] = []
@@ -219,10 +221,11 @@ namespace KrathokKidsBit {
     /**
      * เดินตามเส้น 1 จังหวะ (ใส่ไว้ในบล็อก "วนซ้ำตลอดไป")
      */
-    //% group="เดินตามเส้น"
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=87
     //% block="เดินตามเส้น ความเร็ว $speed"
     //% speed.min=0 speed.max=100 speed.defl=40
-    //% weight=88
     export function lineFollow(speed: number): void {
         speed = kidsClamp(speed, 0, 100)
         Follower(speed, Math.min(100, speed * 2), kidsKP, kidsKD)
@@ -231,11 +234,12 @@ namespace KrathokKidsBit {
     /**
      * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุด
      */
-    //% group="เดินตามเส้น"
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=85
     //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed"
     //% count.min=1 count.defl=1
     //% speed.min=0 speed.max=100 speed.defl=40
-    //% weight=87
     export function lineToJunction(junction: Kids_Junction, count: number, speed: number): void {
         speed = kidsClamp(speed, 0, 100)
         let find = junction == Kids_Junction.Left ? Find_Line.Left : (junction == Kids_Junction.Right ? Find_Line.Right : Find_Line.Center)
@@ -245,11 +249,12 @@ namespace KrathokKidsBit {
     /**
      * เดินตามเส้นตามเวลา (วินาที) แล้วหยุด
      */
-    //% group="เดินตามเส้น"
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=86
     //% block="เดินตามเส้น นาน $seconds วินาที ความเร็ว $speed"
     //% seconds.min=0 seconds.defl=1
     //% speed.min=0 speed.max=100 speed.defl=40
-    //% weight=86
     export function lineFollowFor(seconds: number, speed: number): void {
         speed = kidsClamp(speed, 0, 100)
         ForwardTIME(Forward_Direction.Forward, Math.max(0, seconds) * 1000, speed, Math.min(100, speed * 2), kidsKP, kidsKD)
@@ -258,10 +263,11 @@ namespace KrathokKidsBit {
     /**
      * เลี้ยวที่ทางแยก หมุนตัวจนเซ็นเซอร์ตรงกลางเจอเส้นใหม่
      */
-    //% group="เดินตามเส้น"
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=84
     //% block="เลี้ยว $dir จนเจอเส้น ความเร็ว $speed"
     //% speed.min=0 speed.max=100 speed.defl=50
-    //% weight=85
     export function lineTurn(dir: Kids_LeftRight, speed: number): void {
         if (Num_Sensor == 0) lineSetupStandard()
         let half = Math.max(1, Math.idiv(Num_Sensor, 2))
@@ -275,10 +281,11 @@ namespace KrathokKidsBit {
     /**
      * สำหรับครู: ปรับค่าความไวในการเดินตามเส้น (ค่าเริ่มต้น KP 0.05, KD 0.1)
      */
-    //% group="เดินตามเส้น"
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=88
     //% block="ปรับความไวเดินตามเส้น KP $kp KD $kd"
     //% kp.defl=0.05 kd.defl=0.1
-    //% advanced=true
     export function lineTuning(kp: number, kd: number): void {
         kidsKP = kp
         kidsKD = kd
@@ -289,9 +296,10 @@ namespace KrathokKidsBit {
     /**
      * ระยะทางจากเซ็นเซอร์อัลตราโซนิก (Trig = P1, Echo = P2) หน่วยเซนติเมตร
      */
-    //% group="เซ็นเซอร์"
-    //% block="ระยะทาง (ซม.)"
+    //% group="ระยะทาง"
+    //% subcategory="เซ็นเซอร์"
     //% weight=80
+    //% block="ระยะทาง (ซม.)"
     export function kidsDistance(): number {
         return distanceRead(Ultrasonic_PIN.P1, Ultrasonic_PIN.P2)
     }
@@ -299,10 +307,11 @@ namespace KrathokKidsBit {
     /**
      * เป็นจริงเมื่อมีสิ่งกีดขวางใกล้กว่าระยะที่กำหนด
      */
-    //% group="เซ็นเซอร์"
+    //% group="ระยะทาง"
+    //% subcategory="เซ็นเซอร์"
+    //% weight=79
     //% block="เจอสิ่งกีดขวางใกล้กว่า $cm ซม."
     //% cm.min=1 cm.max=400 cm.defl=15
-    //% weight=79
     export function kidsObstacle(cm: number): boolean {
         let d = kidsDistance()
         return d > 0 && d < cm
@@ -311,9 +320,10 @@ namespace KrathokKidsBit {
     /**
      * ค่าจากเซ็นเซอร์ช่อง 0-7 (0-4095)
      */
-    //% group="เซ็นเซอร์"
-    //% block="ค่าเซ็นเซอร์ช่อง $ch"
+    //% group="เซ็นเซอร์เส้น"
+    //% subcategory="เซ็นเซอร์"
     //% weight=78
+    //% block="ค่าเซ็นเซอร์ช่อง $ch"
     export function kidsSensor(ch: Kids_Sensor): number {
         return ADCRead(<number>ch)
     }
@@ -321,9 +331,10 @@ namespace KrathokKidsBit {
     /**
      * ทิศทางของหุ่นยนต์ -180 ถึง 180 องศา (ค่าบวก = หันไปทางขวา)
      */
-    //% group="เซ็นเซอร์"
-    //% block="ทิศทางหุ่นยนต์ (องศา)"
+    //% group="ทิศทาง"
+    //% subcategory="เซ็นเซอร์"
     //% weight=77
+    //% block="ทิศทางหุ่นยนต์ (องศา)"
     export function kidsHeading(): number {
         return Math.round(anglesRead(Angle.Yaw))
     }
@@ -331,9 +342,10 @@ namespace KrathokKidsBit {
     /**
      * ตั้งให้ทิศที่หุ่นยนต์หันอยู่ตอนนี้ = 0 องศา
      */
-    //% group="เซ็นเซอร์"
-    //% block="ตั้งทิศทางตอนนี้เป็น 0 องศา"
+    //% group="ทิศทาง"
+    //% subcategory="เซ็นเซอร์"
     //% weight=76
+    //% block="ตั้งทิศทางตอนนี้เป็น 0 องศา"
     export function kidsResetHeading(): void {
         setAngleOffset(Angle.Yaw)
     }
@@ -344,9 +356,10 @@ namespace KrathokKidsBit {
      * หมุนเซอร์โวไปที่มุม 0-180 องศา
      */
     //% group="เซอร์โว"
+    //% subcategory="เซอร์โว"
+    //% weight=70
     //% block="เซอร์โวช่อง $servo หมุนไปที่ $degrees องศา"
     //% degrees.shadow="protractorPicker" degrees.defl=90
-    //% weight=70
     export function kidsServo(servo: Kids_Servo, degrees: number): void {
         servoWrite(<number>servo, kidsClamp(degrees, 0, 180))
     }
