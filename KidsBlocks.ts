@@ -1,6 +1,6 @@
 /**
  * บล็อกภาษาไทยแบบง่าย สำหรับนักเรียน ป.4-ป.6
- * (บล็อกเดิมทั้งหมดยังใช้ได้ อยู่ในหมวด "เพิ่มเติม" ของ PTKidsBITVX)
+ * (บล็อกเดิมทั้งหมดยังใช้ได้ อยู่ในหมวด "เพิ่มเติม" ของ KrathokKidsBit)
  */
 
 enum Kids_Move {
@@ -79,7 +79,7 @@ enum Kids_Sensor {
     ADC7 = 0xF4
 }
 
-namespace PTKidsBITVX {
+namespace KrathokKidsBit {
     let kidsKP = 0.05
     let kidsKD = 0.1
 

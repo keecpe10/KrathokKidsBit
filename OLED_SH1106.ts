@@ -1,5 +1,5 @@
 /**
- * OLED 1.3 inch (SH1106, 128x64, I2C) for PTKidsBITVX
+ * OLED 1.3 inch (SH1106, 128x64, I2C) for KrathokKidsBit
  * Ported from Adafruit_SH110X (Adafruit_SH1106G) + Adafruit GFX classic 5x7 font
  * Wiring: VCC -> 3V3, GND -> GND, SCL -> P19 (SCL), SDA -> P20 (SDA)
  */
@@ -34,7 +34,7 @@ enum OLED_OnOff {
     Off
 }
 
-namespace PTKidsBITVX {
+namespace KrathokKidsBit {
     const OLED_W = 128
     const OLED_H = 64
     const OLED_PAGE_OFFSET = 2 // SH1106 RAM is 132 columns; visible area starts at column 2
@@ -274,7 +274,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      */
     //% block="จอ OLED เขียนข้อความ %text|ที่ x %x|y %y|ขนาด %size|สี %color"
     //% advanced=true
-    //% text.defl="PTKidsBIT"
+    //% text.defl="KidsBit"
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% size.min=1 size.max=4 size.defl=1
     //% color.defl=OLED_Color.White

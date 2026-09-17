@@ -183,9 +183,9 @@ enum Angle {
     Roll
 }
 
-//% color="#51cbc7" icon="\u2B9A" block="PTKidsBIT VX"
+//% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
 //% groups='["เคลื่อนที่", "เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
-namespace PTKidsBITVX {
+namespace KrathokKidsBit {
     function initPCA(): void {
         let i2cData = pins.createBuffer(2)
         initI2C = true

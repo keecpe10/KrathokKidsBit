@@ -1,4 +1,8 @@
-# PTKidsBIT block package for PT-BOT KidsBIT kit
+# KrathokKidsBit
+
+บล็อกภาษาไทยสำหรับหุ่นยนต์ KidsBIT + จอ OLED 1.3 นิ้ว สำหรับนักเรียน ป.4-ป.6
+
+พัฒนาต่อจาก [pxt-kidsbit-vx](https://github.com/pt-robotics/pxt-kidsbit-vx) ของ PT-BOT (MIT License)
 
 powered by micro:bit
 
@@ -28,7 +32,7 @@ Use PTKidsBIT's MotorWrite block to drives 1 motor forward and backward. The spe
 * Speed is an integer value between `-100` to `100` (Greater than 0 is forward, less than 0 is backward)
 
 ```blocks
-PTKidsBIT.motorWrite(Motor_Write.Motor_1, 50)
+KrathokKidsBit.motorWrite(Motor_Write.Motor_1, 50)
 ```
 
 ### motorGo Block
@@ -39,7 +43,7 @@ Use PTKidsBIT's motorGo block to drives 2 motor forward and backward. The speed 
 * The motor2 must be select `-100` to `100` (Greater than 0 is forward, less than 0 is backward)
 
 ```blocks
-PTKidsBIT.motorGo(50, -50)
+KrathokKidsBit.motorGo(50, -50)
 ```
 
 ### Turn Block
@@ -50,7 +54,7 @@ Use PTKidsBIT's Turn block to control the robot movment by turning. The one moto
 * Speed is an integer value between `0` to `100`
 
 ```blocks
-PTKidsBIT.Turn(_Turn.Left, 50)
+KrathokKidsBit.Turn(_Turn.Left, 50)
 ```
 
 ### Spin Block
@@ -61,7 +65,7 @@ Use PTKidsBIT's Spin block to control both motors separately. For example, choos
 * Speed is an integer value between `0` to `100`
 
 ```blocks
-PTKidsBIT.Spin(_Spin.Left, 50)
+KrathokKidsBit.Spin(_Spin.Left, 50)
 ```
 
 ### Motor Stop Block 
@@ -69,7 +73,7 @@ PTKidsBIT.Spin(_Spin.Left, 50)
 Use PTKidsBIT's Motor Stop block is used to stop both motors.
 
 ```blocks
-PTKidsBIT.motorStop()
+KrathokKidsBit.motorStop()
 ```
 
 ### servoWrite Block
@@ -81,7 +85,7 @@ Use PTKidsBIT's servoWrite block for control the servo's moving degree from 0 to
 * Mode must be select either `Released` or `Lock`
 
 ```blocks
-PTKidsBIT.servoWrite(Servo_Write.P8, 180)
+KrathokKidsBit.servoWrite(Servo_Write.P8, 180)
 ```
 
 ### WaitClick Block
@@ -92,7 +96,7 @@ Use PTKidsBIT's WaitClick block for Wait for the command from the button.
 * Select `Pressed` or `Released`.
 
 ```blocks
-PTKidsBIT.waitClick(Button_Pin.P1, Button_Status.Pressed)
+KrathokKidsBit.waitClick(Button_Pin.P1, Button_Status.Pressed)
 ```
 
 ### ADCRead Block
@@ -103,7 +107,7 @@ Use PTKidsBIT's ADCRead block for read analog from ADC channels. The resolution 
 
 ```blocks
 basic.forever(function () {
-    basic.showNumber(PTKidsBIT.ADCRead(ADC_Read.ADC0))
+    basic.showNumber(KrathokKidsBit.ADCRead(ADC_Read.ADC0))
 })
 ```
 
@@ -119,7 +123,7 @@ The calibration process is as follows
 * Place all sensor on the floor, press Button A once and wait until the buzzer sounds.
 
 ```blocks
-PTKidsBIT.SensorCalibrate([1, 0, 7, 6])
+KrathokKidsBit.SensorCalibrate([1, 0, 7, 6])
 ```
 
 ### LINESensorSET Block
@@ -132,7 +136,7 @@ Use PTKidsBIT's LINESensorSET block for select the ADC channel connected to the 
 * The ON OFF Sensor, `Pin` or `Disable` must be selected for the sensor on or off.
 
 ```blocks
-PTKidsBIT.LINESensorSET(
+KrathokKidsBit.LINESensorSET(
     [1, 0, 7, 6],
     [2],
     [5],
@@ -153,7 +157,7 @@ Use PTKidsBIT's ForwardLINE blog for the robot to follow the line forward. When 
 * KD value for control the robot
 
 ```blocks
-PTKidsBIT.ForwardLINE(
+KrathokKidsBit.ForwardLINE(
     Forward_Direction.Forward,
     Find_Line.Left,
     30,
@@ -176,7 +180,7 @@ Use PTKidsBIT's ForwardTIME blog for the robot to follow the line forward. When 
 * KD value for control the robot
 
 ```blocks
-PTKidsBIT.ForwardTIME(
+KrathokKidsBit.ForwardTIME(
     Forward_Direction.Forward,
     200,
     60,
@@ -197,7 +201,7 @@ Use PTKidsBIT's TurnLINE block for the Robot to turn until it detects a line.
 * Break Time is the time for the Motor to reverse to brake when the Robot stops.
 
 ```blocks
-PTKidsBIT.TurnLINE(
+KrathokKidsBit.TurnLINE(
     Turn_Line.Left,
     60,
     2,
@@ -215,12 +219,12 @@ PTKidsBIT.TurnLINE(
 MIT
 
 ```package
-PTKidsBIT=github:iBuilds/pxt-ptkidsbit
+KrathokKidsBit=github:keecpe10/KrathokKidsBit
 ```
 
 ## บล็อกภาษาไทยสำหรับนักเรียน ป.4-ป.6
 
-บล็อกใหม่อยู่ในหมวด **PTKidsBIT VX** แบ่งเป็น 5 กลุ่ม ส่วนบล็อกเดิม (ภาษาอังกฤษ, KP/KD) ยังใช้ได้เหมือนเดิม ย้ายไปอยู่ใน **เพิ่มเติม...**
+บล็อกใหม่อยู่ในหมวด **KrathokKidsBit** แบ่งเป็น 5 กลุ่ม ส่วนบล็อกเดิม (ภาษาอังกฤษ, KP/KD) ยังใช้ได้เหมือนเดิม ย้ายไปอยู่ใน **เพิ่มเติม...**
 
 | กลุ่ม | บล็อก |
 |---|---|
@@ -234,12 +238,12 @@ PTKidsBIT=github:iBuilds/pxt-ptkidsbit
 
 ```blocks
 basic.forever(function () {
-    PTKidsBITVX.oledShowValue("Distance", PTKidsBITVX.kidsDistance(), 1)
-    if (PTKidsBITVX.kidsObstacle(15)) {
-        PTKidsBITVX.robotMoveFor(Kids_Move.Backward, 50, 0.5)
-        PTKidsBITVX.robotSpinDegrees(Kids_LeftRight.Right, 90, 60)
+    KrathokKidsBit.oledShowValue("Distance", KrathokKidsBit.kidsDistance(), 1)
+    if (KrathokKidsBit.kidsObstacle(15)) {
+        KrathokKidsBit.robotMoveFor(Kids_Move.Backward, 50, 0.5)
+        KrathokKidsBit.robotSpinDegrees(Kids_LeftRight.Right, 90, 60)
     } else {
-        PTKidsBITVX.robotMove(Kids_Move.Forward, 50)
+        KrathokKidsBit.robotMove(Kids_Move.Forward, 50)
     }
 })
 ```
@@ -247,11 +251,11 @@ basic.forever(function () {
 ตัวอย่าง: เดินตามเส้น
 
 ```blocks
-PTKidsBITVX.lineSetupStandard()
-PTKidsBITVX.lineCalibrate()
-PTKidsBITVX.lineToJunction(Kids_Junction.Center, 2, 40)
-PTKidsBITVX.lineTurn(Kids_LeftRight.Left, 50)
-PTKidsBITVX.lineToJunction(Kids_Junction.Center, 1, 40)
+KrathokKidsBit.lineSetupStandard()
+KrathokKidsBit.lineCalibrate()
+KrathokKidsBit.lineToJunction(Kids_Junction.Center, 2, 40)
+KrathokKidsBit.lineTurn(Kids_LeftRight.Left, 50)
+KrathokKidsBit.lineToJunction(Kids_Junction.Center, 1, 40)
 ```
 
 ## OLED 1.3 inch (SH1106 128x64 I2C)
@@ -261,9 +265,9 @@ Ported from Adafruit_SH110X (`Adafruit_SH1106G`) with the Adafruit GFX 5x7 font 
 Wiring: `VCC` → 3V3, `GND` → GND, `SCL` → P19, `SDA` → P20 (I2C address 0x3C, or 0x3D)
 
 ```blocks
-PTKidsBITVX.oledShowLine("PTKidsBIT VX", 1)
+KrathokKidsBit.oledShowLine("KrathokKidsBit", 1)
 basic.forever(function () {
-    PTKidsBITVX.oledShowValue("ADC0", PTKidsBITVX.kidsSensor(Kids_Sensor.ADC0), 3)
+    KrathokKidsBit.oledShowValue("ADC0", KrathokKidsBit.kidsSensor(Kids_Sensor.ADC0), 3)
 })
 ```
 
