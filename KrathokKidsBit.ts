@@ -20,6 +20,7 @@ let Color_Line_Left: number[] = []
 let Color_Background_Left: number[] = []
 let Color_Line_Right: number[] = []
 let Color_Background_Right: number[] = []
+const ADS7828_ADDR = 0x48   // ADS7828 ตั้งได้ 0x48-0x4B ด้วยขา A0/A1
 let Line_Mode = 0
 let Last_Position = 0
 let error = 0
@@ -225,6 +226,67 @@ namespace KrathokKidsBit {
 
     function validCh(ch: number): boolean {
         return ch >= 0 && ch <= 7
+    }
+
+    /**
+     * คัดเฉพาะหมายเลขช่อง 0-7 ที่ใช้ได้จริง ตัวที่นอกช่วงถูกตัดทิ้ง
+     * กันไม่ให้อ่านเกินขอบตาราง ADC ตอนหุ่นกำลังวิ่ง
+     */
+    function validChannels(list: number[]): number[] {
+        let out: number[] = []
+        for (let i = 0; i < list.length; i++) {
+            let ch = Math.floor(list[i])
+            if (validCh(ch)) out.push(ch)
+        }
+        return out
+    }
+
+    /**
+     * แปลงหมายเลขช่อง 0-7 เป็นคำสั่งอ่านของ ADS7828
+     */
+    export function adcCmd(ch: number): number {
+        let table = [
+            ADC_Read.ADC0, ADC_Read.ADC1, ADC_Read.ADC2, ADC_Read.ADC3,
+            ADC_Read.ADC4, ADC_Read.ADC5, ADC_Read.ADC6, ADC_Read.ADC7
+        ]
+        if (!validCh(ch)) return ADC_Read.ADC0
+        return table[ch]
+    }
+
+    /**
+     * อ่านค่าดิบของเซ็นเซอร์กลางทุกตัว หนึ่งรอบ
+     */
+    export function readCenterRaw(): number[] {
+        let out: number[] = []
+        for (let i = 0; i < Sensor_PIN.length; i++) out.push(ADCRead(adcCmd(Sensor_PIN[i])))
+        return out
+    }
+
+    /**
+     * แปลงค่าดิบของเซ็นเซอร์กลางเป็นตำแหน่งเส้น โดยไม่อ่าน ADC ซ้ำ
+     */
+    export function positionFrom(raw: number[]): number {
+        let Average = 0
+        let Sum_Value = 0
+        let ON_Line = 0
+        for (let i = 0; i < Num_Sensor && i < raw.length; i++) {
+            let Value_Sensor = 0
+            if (Line_Mode == 0) Value_Sensor = pins.map(raw[i], Color_Line[i], Color_Background[i], 1000, 0)
+            else Value_Sensor = pins.map(raw[i], Color_Background[i], Color_Line[i], 1000, 0)
+            if (Value_Sensor < 0) Value_Sensor = 0
+            else if (Value_Sensor > 1000) Value_Sensor = 1000
+            if (Value_Sensor > 200) {
+                ON_Line = 1
+                Average += Value_Sensor * (i * 1000)
+                Sum_Value += Value_Sensor
+            }
+        }
+        if (ON_Line == 0) {
+            if (Last_Position < (Num_Sensor - 1) * 1000 / 2) return (Num_Sensor - 1) * 1000
+            else return 0
+        }
+        Last_Position = Average / Sum_Value
+        return Math.round(((Num_Sensor - 1) * 1000) - Last_Position)
     }
 
     /**
@@ -947,10 +1009,13 @@ namespace KrathokKidsBit {
     //% advanced=true
     //% weight=80
     //% block="Read ADC %ADC_Read"
-    export function ADCRead(ADCRead: ADC_Read): number {
-        pins.i2cWriteNumber(0x48, ADCRead, NumberFormat.UInt8LE, false)
+    export function ADCRead(channel: ADC_Read): number {
+        pins.i2cWriteNumber(ADS7828_ADDR, channel, NumberFormat.UInt8LE, false)
         control.waitMicros(100)
-        return ADCRead = pins.i2cReadNumber(0x48, NumberFormat.UInt16BE, false)
+        // ADS7828 ส่งค่า 12 บิตมาใน 2 ไบต์ โดยไบต์แรกมีศูนย์นำหน้า 4 บิต
+        // ค่าปกติจึงอยู่ในช่วง 0-4095 อยู่แล้ว มาสก์ไว้กันกรณีชิปไม่ตอบ
+        // ซึ่งบัส I2C จะคืน 0xFFFF ออกมาเป็นค่าเซ็นเซอร์
+        return pins.i2cReadNumber(ADS7828_ADDR, NumberFormat.UInt16BE, false) & 0x0FFF
     }
 
     /**
@@ -1382,57 +1447,8 @@ namespace KrathokKidsBit {
     //% advanced=true
     //% weight=96
     //% block="GETPosition"
-    export function GETPosition() {
-        let ADC_PIN = [
-            ADC_Read.ADC0,
-            ADC_Read.ADC1,
-            ADC_Read.ADC2,
-            ADC_Read.ADC3,
-            ADC_Read.ADC4,
-            ADC_Read.ADC5,
-            ADC_Read.ADC6,
-            ADC_Read.ADC7
-        ]
-        let Average = 0
-        let Sum_Value = 0
-        let ON_Line = 0
-
-        for (let i = 0; i < Num_Sensor; i++) {
-            let Value_Sensor = 0;
-            if (Line_Mode == 0) {
-                Value_Sensor = pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)
-                if (Value_Sensor < 0) {
-                    Value_Sensor = 0
-                }
-                else if (Value_Sensor > 1000) {
-                    Value_Sensor = 1000
-                }
-            }
-            else {
-                Value_Sensor = pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Background[i], Color_Line[i], 1000, 0)
-                if (Value_Sensor < 0) {
-                    Value_Sensor = 0
-                }
-                else if (Value_Sensor > 1000) {
-                    Value_Sensor = 1000
-                }
-            }
-            if (Value_Sensor > 200) {
-                ON_Line = 1;
-                Average += Value_Sensor * (i * 1000)
-                Sum_Value += Value_Sensor
-            }
-        }
-        if (ON_Line == 0) {
-            if (Last_Position < (Num_Sensor - 1) * 1000 / 2) {
-                return (Num_Sensor - 1) * 1000
-            }
-            else {
-                return 0
-            }
-        }
-        Last_Position = Average / Sum_Value;
-        return Math.round(((Num_Sensor - 1) * 1000) - Last_Position)
+    export function GETPosition(): number {
+        return positionFrom(readCenterRaw())
     }
 
     /**
@@ -1499,14 +1515,22 @@ namespace KrathokKidsBit {
     //% weight=100
     //% block="LINESensorSET $adc_pin|Sensor Left\n\n $sensor_left|Sensor Right\n $sensor_right|ON OFF Sensor $led_pin"
     export function LINESensorSET(adc_pin: number[], sensor_left: number[], sensor_right: number[], led_pin: LED_Pin): void {
-        Sensor_PIN = adc_pin
-        Sensor_Left = sensor_left
-        Sensor_Right = sensor_right
+        let asked = adc_pin.length + sensor_left.length + sensor_right.length
+        Sensor_PIN = validChannels(adc_pin)
+        Sensor_Left = validChannels(sensor_left)
+        Sensor_Right = validChannels(sensor_right)
         Num_Sensor = Sensor_PIN.length
         LED_PIN = led_pin
         setLineLED(true)
         // สร้าง Color_* จากค่าที่สอนไว้แล้ว เผื่อคาลิเบรตมาก่อนตั้งค่าเซ็นเซอร์
         applyCal()
+        if (Sensor_PIN.length + Sensor_Left.length + Sensor_Right.length < asked) {
+            // มีเลขช่องนอกช่วง 0-7 ถูกตัดทิ้ง บอกตั้งแต่ตอนตั้งค่า
+            // ดีกว่าปล่อยให้ไปพังตอนหุ่นวิ่ง
+            music.playTone(262, music.beat(BeatFraction.Quarter))
+            music.playTone(196, music.beat(BeatFraction.Quarter))
+            basic.showString("PIN?")
+        }
     }
 
     /**
@@ -1550,7 +1574,7 @@ namespace KrathokKidsBit {
             ADC_Read.ADC6,
             ADC_Read.ADC7
         ]
-        let _Sensor_PIN = adc_pin
+        let _Sensor_PIN = validChannels(adc_pin)
         let _Num_Sensor = _Sensor_PIN.length
 
         // เก็บค่าคาลิเบรตตาม "หมายเลขช่อง ADC" (0-7) ไม่ใช่ตามลำดับใน adc_pin
