@@ -199,13 +199,13 @@ enum Angle {
 }
 
 //% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
-//% groups='["เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
+//% groups='["เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "จูน PID", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
 //% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
     /**
      * รอจนกดปุ่ม A แล้วปล่อย ป้องกันการกดค้างข้ามไปยังขั้นตอนถัดไป
      */
-    function waitButtonA(): void {
+    export function waitButtonA(): void {
         while (input.buttonIsPressed(Button.A)) basic.pause(20)
         while (!input.buttonIsPressed(Button.A)) basic.pause(20)
         while (input.buttonIsPressed(Button.A)) basic.pause(20)

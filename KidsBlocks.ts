@@ -60,6 +60,13 @@ enum Kids_Servo {
     S7
 }
 
+enum Kids_Gain {
+    //% block="KP"
+    KP,
+    //% block="KD"
+    KD
+}
+
 enum Kids_Sensor {
     //% block="0"
     ADC0 = 0x84,
@@ -337,6 +344,203 @@ namespace KrathokKidsBit {
     //% on.shadow="toggleOnOff"
     export function lineLED(on: boolean): void {
         LineSensorLED(on)
+    }
+
+    // ================= จูน PID =================
+    //
+    // วิธีเดียวกับโปรเจกต์ PT-BOT SPT: ไล่ค่าทีละ 4 ค่า วัด "การส่าย" ของหุ่น
+    // แล้วเลือกค่าที่ส่ายน้อยที่สุด ทำตามลำดับ
+    //   1) จูน KP โดยปิด KD  -> ได้แค่ค่าตั้งต้น เพราะไม่มีแรงหน่วง KP สูงจะแกว่งเสมอ
+    //   2) จูน KD โดยใช้ KP นั้น
+    //   3) จูน KP ซ้ำโดยคงค่า KD ไว้ -> ค่านี้คือค่าที่เอาไปใช้จริง
+    // ข้ามขั้นที่ 3 ไม่ได้ ค่าจากขั้นที่ 1 ต่ำกว่าความจริงเสมอ
+
+    // คาบของลูปจูน ตั้งให้เท่ากับ basic.forever เพื่อให้ค่า KD ที่ได้ใช้กับ
+    // "ตลอดไป + เดินตามเส้น" ได้ตรง ๆ  ถ้าเปลี่ยนคาบลูป ต้องจูน KD ใหม่
+    const KIDS_TUNE_PERIOD = 20
+    let kidsTuneSeconds = 4
+
+    function fmt2(v: number): string {
+        let r = Math.round(v * 100)
+        let whole = Math.idiv(r, 100)
+        let frac = Math.abs(r % 100)
+        return whole + "." + (frac < 10 ? "0" + frac : "" + frac)
+    }
+
+    function tuneSay(line: number, text: string): void {
+        serial.writeLine(text)
+        // เขียนจอเฉพาะตอนที่จอเริ่มทำงานแล้ว จะได้ไม่ไปปลุกจอที่ไม่ได้ต่อไว้
+        if (oledIsReady() && line >= 1 && line <= 8) oledShowLine(text, line)
+    }
+
+    /**
+     * วิ่งตามเส้นด้วยค่าที่กำหนด แล้ววัดว่าส่ายเท่าไร
+     * คืน [ส่ายเฉลี่ย, ส่ายมากสุด] หน่วยเดียวกับค่าตำแหน่งเส้น ยิ่งน้อยยิ่งดี
+     */
+    function tuneScore(kp: number, kd: number, speed: number, ms: number): number[] {
+        previous_error = 0
+        let sum = 0
+        let count = 0
+        let worst = 0
+        let stop = input.runningTime() + ms
+        while (input.runningTime() < stop) {
+            let mark = input.runningTime()
+            Follower(speed, Math.min(100, speed * 2), kp, kd)
+            let e = Math.abs(error)
+            sum += e
+            if (e > worst) worst = e
+            count += 1
+            // คุมคาบให้คงที่ ไม่ใช่หน่วงคงที่ เวลาที่ใช้อ่านเซ็นเซอร์จึงไม่ทำให้คาบเพี้ยน
+            let used = input.runningTime() - mark
+            basic.pause(Math.max(1, KIDS_TUNE_PERIOD - used))
+        }
+        motorStop()
+        if (count == 0) return [0, 0]
+        return [Math.round(sum / count), worst]
+    }
+
+    /**
+     * ไล่ 4 ค่าแล้วสรุปว่าค่าไหนส่ายน้อยที่สุด
+     */
+    function tuneSweep(label: string, kdFixed: boolean, speed: number, from: number, to: number): number {
+        kidsLineReady()
+        speed = kidsClamp(speed, 0, 100)
+        let lo = Math.min(from, to)
+        let hi = Math.max(from, to)
+        let step = (hi - lo) / 3
+        let values = [lo, lo + step, lo + step * 2, hi]
+        let means: number[] = []
+        let peaks: number[] = []
+
+        serial.writeLine("== TUNE " + label + " speed " + speed + " ==")
+        for (let i = 0; i < 4; i++) {
+            let kp = label == "KP" ? values[i] : kidsKP
+            let kd = label == "KP" ? (kdFixed ? kidsKD : 0) : values[i]
+            if (oledIsReady()) oledClear()
+            tuneSay(1, "TUNE " + label + " " + (i + 1) + "/4")
+            tuneSay(2, label + " = " + fmt2(values[i]))
+            tuneSay(3, "put on line, press A")
+            music.playTone(784, music.beat(BeatFraction.Quarter))
+            waitButtonA()
+            let r = tuneScore(kp, kd, speed, kidsTuneSeconds * 1000)
+            means.push(r[0])
+            peaks.push(r[1])
+            serial.writeLine(label + " " + fmt2(values[i]) + " avg " + r[0] + " max " + r[1])
+            tuneSay(4, "avg " + r[0] + " max " + r[1])
+            music.playTone(587, music.beat(BeatFraction.Quarter))
+        }
+
+        let best = 0
+        for (let i = 1; i < 4; i++) if (means[i] < means[best]) best = i
+        let spread = 0
+        for (let i = 0; i < 4; i++) {
+            let d = means[i] - means[best]
+            if (d > spread) spread = d
+        }
+
+        if (oledIsReady()) oledClear()
+        tuneSay(1, "TUNE " + label + " done")
+        for (let i = 0; i < 4; i++) {
+            tuneSay(2 + i, (i == best ? ">" : " ") + fmt2(values[i]) + " a" + means[i] + " m" + peaks[i])
+        }
+        serial.writeLine(">>> BEST " + label + " = " + fmt2(values[best]))
+        tuneSay(6, "BEST " + fmt2(values[best]))
+        // เกณฑ์เดียวกับโปรเจกต์ต้นแบบ: ถ้าสี่ค่าต่างกันน้อยกว่าความคลาดเคลื่อนของการวัด
+        // ไล่ซ้ำต่อไปก็ได้แค่ noise
+        if (spread <= Math.max(2, Math.idiv(means[best] * 15, 100))) {
+            serial.writeLine(">>> ALL FOUR WITHIN NOISE - USE THIS VALUE")
+            tuneSay(7, "ALL SAME - USE IT")
+        }
+        else {
+            tuneSay(7, "narrow range, redo")
+        }
+        music.playTone(784, music.beat(BeatFraction.Quarter))
+        music.playTone(988, music.beat(BeatFraction.Quarter))
+        return values[best]
+    }
+
+    /**
+     * ขั้นที่ 1: ไล่หาค่า KP โดยปิด KD
+     * ค่าที่ได้เป็นแค่ค่าตั้งต้น ต้องทำขั้นที่ 2 และ 3 ต่อเสมอ
+     * @param speed ความเร็วที่จะใช้จริง 0-100
+     * @param from ค่า KP ต่ำสุดที่จะลอง
+     * @param to ค่า KP สูงสุดที่จะลอง
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=79
+    //% block="จูน KP (ปิด KD) ความเร็ว $speed ตั้งแต่ $from ถึง $to"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% from.defl=0.02 to.defl=0.20
+    //% inlineInputMode=inline
+    export function lineTuneKpNoKd(speed: number, from: number, to: number): void {
+        kidsKP = tuneSweep("KP", false, speed, from, to)
+        kidsKD = 0
+    }
+
+    /**
+     * ขั้นที่ 2: ไล่หาค่า KD โดยใช้ค่า KP ที่ได้จากขั้นที่ 1
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=78
+    //% block="จูน KD ความเร็ว $speed ตั้งแต่ $from ถึง $to"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% from.defl=0 to.defl=8
+    //% inlineInputMode=inline
+    export function lineTuneKd(speed: number, from: number, to: number): void {
+        kidsKD = tuneSweep("KD", true, speed, from, to)
+    }
+
+    /**
+     * ขั้นที่ 3: ไล่หาค่า KP ซ้ำโดยคงค่า KD ไว้ ค่าที่ได้จากขั้นนี้คือค่าที่เอาไปใช้จริง
+     * ข้ามขั้นนี้ไม่ได้ เพราะค่าจากขั้นที่ 1 ต่ำกว่าความจริงเสมอ
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=77
+    //% block="จูน KP (คง KD) ความเร็ว $speed ตั้งแต่ $from ถึง $to"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% from.defl=0.02 to.defl=0.40
+    //% inlineInputMode=inline
+    export function lineTuneKpWithKd(speed: number, from: number, to: number): void {
+        kidsKP = tuneSweep("KP", true, speed, from, to)
+    }
+
+    /**
+     * วัดการส่ายด้วยค่า KP KD ที่ตั้งอยู่ตอนนี้ คืนค่าส่ายเฉลี่ย ยิ่งน้อยยิ่งเกาะเส้นนิ่ง
+     * @param speed ความเร็ว 0-100
+     * @param seconds วัดนานกี่วินาที
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=76
+    //% block="วัดการส่าย ความเร็ว $speed นาน $seconds วินาที"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% seconds.min=1 seconds.defl=4
+    //% inlineInputMode=inline
+    export function lineWobble(speed: number, seconds: number): number {
+        kidsLineReady()
+        let r = tuneScore(kidsKP, kidsKD, kidsClamp(speed, 0, 100), Math.max(1, seconds) * 1000)
+        serial.writeLine("WOBBLE avg " + r[0] + " max " + r[1])
+        if (oledIsReady()) {
+            oledClear()
+            oledShowLine("WOBBLE", 1)
+            oledShowLine("avg " + r[0], 2)
+            oledShowLine("max " + r[1], 3)
+        }
+        return r[0]
+    }
+
+    /**
+     * ค่าความไวที่ใช้อยู่ตอนนี้ เอาไว้จดไปใส่บล็อก "ปรับความไวเดินตามเส้น"
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=75
+    //% block="ค่าความไวตอนนี้ $which"
+    export function lineGain(which: Kids_Gain): number {
+        return which == Kids_Gain.KP ? kidsKP : kidsKD
     }
 
     /**
