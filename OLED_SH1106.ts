@@ -671,6 +671,13 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
+    /**
+     * จอเริ่มทำงานแล้วหรือยัง ใช้เช็คก่อนเขียนจอ เพื่อไม่ไปปลุกจอที่ไม่ได้ต่อไว้
+     */
+    export function oledIsReady(): boolean {
+        return oledReady
+    }
+
     function oledChIn(list: number[], ch: number): boolean {
         for (let i = 0; i < list.length; i++) if (list[i] == ch) return true
         return false
