@@ -437,7 +437,23 @@ namespace KrathokKidsBit {
     /**
      * ไล่ 4 ค่าแล้วสรุปว่าค่าไหนส่ายน้อยที่สุด
      */
-    function tuneSweep(label: string, kdFixed: boolean, speed: number, from: number, to: number): number {
+    /**
+     * ยังอยู่บนเส้นอยู่ไหม ใช้ตัดสินว่าต้องให้คนมาวางหุ่นใหม่หรือวิ่งต่อได้เลย
+     */
+    function onLineNow(): boolean {
+        if (!lineCalibrated()) return false
+        let raw = readCenterRaw()
+        for (let i = 0; i < raw.length; i++) {
+            let v = pins.map(raw[i], Color_Line[i], Color_Background[i], 1000, 0)
+            if (v >= 500) return true
+        }
+        return false
+    }
+
+    /**
+     * ไล่ 4 ค่า คืน [ค่าที่ชนะ, ขนาดก้าว, เข้าเกณฑ์ noise แล้วหรือยัง 1/0]
+     */
+    function tuneSweep(label: string, kdFixed: boolean, speed: number, from: number, to: number): number[] {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         let lo = Math.min(from, to)
@@ -455,9 +471,17 @@ namespace KrathokKidsBit {
             if (oledIsReady()) oledClear()
             tuneSay(1, "TUNE " + label + " " + bandName(bandOf(speed)) + " " + (i + 1) + "/4")
             tuneSay(2, label + " = " + fmt2(values[i]))
-            tuneSay(3, "put on line, press A")
-            music.playTone(784, music.beat(BeatFraction.Quarter))
-            waitButtonA()
+            // ถ้าหุ่นยังคร่อมเส้นอยู่ (สนามเป็นวงรอบ) ก็วิ่งต่อได้เลย ไม่ต้องรอคน
+            if (onLineNow()) {
+                tuneSay(3, "on line, going on")
+                music.playTone(784, music.beat(BeatFraction.Quarter))
+                basic.pause(800)
+            }
+            else {
+                tuneSay(3, "put on line, press A")
+                music.playTone(784, music.beat(BeatFraction.Quarter))
+                waitButtonA()
+            }
             let r = tuneScore(kp, kd, speed, kidsTuneSeconds * 1000)
             means.push(r[0])
             peaks.push(r[1])
@@ -492,7 +516,72 @@ namespace KrathokKidsBit {
         }
         music.playTone(784, music.beat(BeatFraction.Quarter))
         music.playTone(988, music.beat(BeatFraction.Quarter))
-        return values[best]
+        let quiet = spread <= Math.max(2, Math.idiv(means[best] * 15, 100)) ? 1 : 0
+        return [values[best], step, quiet]
+    }
+
+    /**
+     * ไล่ค่าซ้ำ หุบช่วงรอบค่าที่ชนะทุกครั้ง จนกว่าจะเข้าเกณฑ์ noise หรือครบจำนวนรอบ
+     */
+    function tuneNarrow(label: string, kdFixed: boolean, speed: number, lo: number, hi: number, rounds: number): number {
+        let best = lo
+        for (let r = 0; r < rounds; r++) {
+            serial.writeLine("-- " + label + " round " + (r + 1) + " : " + fmt2(lo) + " .. " + fmt2(hi))
+            let res = tuneSweep(label, kdFixed, speed, lo, hi)
+            best = res[0]
+            if (res[2] == 1) {
+                serial.writeLine("-- " + label + " settled after round " + (r + 1))
+                break
+            }
+            // ช่วงใหม่กว้างข้างละหนึ่งก้าวเดิม = แคบลงเหลือสองในสามของเดิม
+            lo = Math.max(0, best - res[1])
+            hi = best + res[1]
+        }
+        return best
+    }
+
+    /**
+     * จูนครบทั้งสามขั้นในบล็อกเดียว และหุบช่วงให้เองจนกว่าจะเข้าเกณฑ์ noise
+     * ผลลงช่วงความเร็วที่ตรงกับความเร็วที่ทดสอบ
+     * ระหว่างจูน ถ้าหุ่นยังคร่อมเส้นอยู่จะวิ่งต่อเอง ถ้าหลุดเส้นจะรอให้กดปุ่ม A
+     * @param speed ความเร็วที่จะใช้จริง 0-100
+     * @param rounds ไล่ซ้ำได้มากสุดกี่รอบต่อหนึ่งขั้น
+     */
+    //% group="จูน PID"
+    //% subcategory="เดินตามเส้น"
+    //% weight=80
+    //% block="จูนอัตโนมัติ ความเร็ว $speed รอบสูงสุดต่อขั้น $rounds"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% rounds.min=1 rounds.max=5 rounds.defl=2
+    //% inlineInputMode=inline
+    export function lineAutoTune(speed: number, rounds: number): void {
+        kidsLineReady()
+        speed = kidsClamp(speed, 0, 100)
+        rounds = Math.max(1, Math.min(5, Math.floor(rounds)))
+        let band = bandOf(speed)
+        let name = bandName(band)
+        serial.writeLine("===== AUTO TUNE " + name + " speed " + speed + " =====")
+
+        // ขั้นที่ 1 หา KP โดยปิด KD ได้แค่ค่าตั้งต้น
+        kidsKDBand[band] = 0
+        kidsKPBand[band] = tuneNarrow("KP", false, speed, 0.02, 0.20, rounds)
+
+        // ขั้นที่ 2 หา KD โดยใช้ KP จากขั้นที่ 1
+        kidsKDBand[band] = tuneNarrow("KD", true, speed, 0, 8, rounds)
+
+        // ขั้นที่ 3 หา KP ซ้ำโดยคงค่า KD ค่านี้คือค่าที่ใช้จริง
+        kidsKPBand[band] = tuneNarrow("KP", true, speed, 0.02, 0.40, rounds)
+
+        serial.writeLine("===== AUTO TUNE " + name + " DONE =====")
+        serial.writeLine("KP " + fmt2(kidsKPBand[band]) + "  KD " + fmt2(kidsKDBand[band]))
+        if (oledIsReady()) oledClear()
+        tuneSay(1, "AUTO TUNE " + name)
+        tuneSay(2, "KP " + fmt2(kidsKPBand[band]))
+        tuneSay(3, "KD " + fmt2(kidsKDBand[band]))
+        tuneSay(4, "write these down")
+        music.playTone(784, music.beat(BeatFraction.Quarter))
+        music.playTone(988, music.beat(BeatFraction.Quarter))
+        music.playTone(1175, music.beat(BeatFraction.Half))
     }
 
     /**
@@ -511,7 +600,7 @@ namespace KrathokKidsBit {
     //% inlineInputMode=inline
     export function lineTuneKpNoKd(speed: number, from: number, to: number): void {
         let band = bandOf(kidsClamp(speed, 0, 100))
-        kidsKPBand[band] = tuneSweep("KP", false, speed, from, to)
+        kidsKPBand[band] = tuneSweep("KP", false, speed, from, to)[0]
         kidsKDBand[band] = 0
     }
 
@@ -526,7 +615,7 @@ namespace KrathokKidsBit {
     //% from.defl=0 to.defl=8
     //% inlineInputMode=inline
     export function lineTuneKd(speed: number, from: number, to: number): void {
-        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KD", true, speed, from, to)
+        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KD", true, speed, from, to)[0]
     }
 
     /**
@@ -541,7 +630,7 @@ namespace KrathokKidsBit {
     //% from.defl=0.02 to.defl=0.40
     //% inlineInputMode=inline
     export function lineTuneKpWithKd(speed: number, from: number, to: number): void {
-        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KP", true, speed, from, to)
+        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KP", true, speed, from, to)[0]
     }
 
     /**
