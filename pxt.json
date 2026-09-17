@@ -4,11 +4,12 @@
     "description": "",
     "license": "MIT",
     "dependencies": {
-        "core": "*"
+        "core": "file:../../libs/core"
     },
     "files": [
         "README.md",
         "PTKidsBITVX.ts",
+        "KidsBlocks.ts",
         "OLED_SH1106.ts",
         "main.py",
         "main.ts"

@@ -218,19 +218,53 @@ MIT
 PTKidsBIT=github:iBuilds/pxt-ptkidsbit
 ```
 
+## บล็อกภาษาไทยสำหรับนักเรียน ป.4-ป.6
+
+บล็อกใหม่อยู่ในหมวด **PTKidsBIT VX** แบ่งเป็น 5 กลุ่ม ส่วนบล็อกเดิม (ภาษาอังกฤษ, KP/KD) ยังใช้ได้เหมือนเดิม ย้ายไปอยู่ใน **เพิ่มเติม...**
+
+| กลุ่ม | บล็อก |
+|---|---|
+| เคลื่อนที่ | หุ่นยนต์ เดินหน้า/ถอยหลัง/เลี้ยว/หมุน ความเร็ว · ...นาน _ วินาที · หุ่นยนต์หยุด · ล้อซ้าย _ ล้อขวา _ · หุ่นยนต์หมุน ซ้าย/ขวา _ องศา · หุ่นยนต์เดินหน้าตรงๆ นาน _ วินาที |
+| เดินตามเส้น | ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน · สอนเซ็นเซอร์รู้จักเส้นและพื้น · เดินตามเส้น ความเร็ว _ · เดินตามเส้นไปจนเจอทางแยก _ ครั้ง · เดินตามเส้น นาน _ วินาที · เลี้ยว ซ้าย/ขวา จนเจอเส้น |
+| เซ็นเซอร์ | ระยะทาง (ซม.) · เจอสิ่งกีดขวางใกล้กว่า _ ซม. · ค่าเซ็นเซอร์ช่อง _ · ทิศทางหุ่นยนต์ (องศา) · ตั้งทิศทางตอนนี้เป็น 0 องศา |
+| เซอร์โว | เซอร์โวช่อง 1-8 หมุนไปที่ _ องศา |
+| จอ OLED | ล้างจอ · แสดงข้อความ/ตัวเลข บรรทัดที่ 1-8 · แสดง ชื่อ = ค่า · แสดงตัวใหญ่ · วาดเส้น/สี่เหลี่ยม/วงกลม |
+
+ตัวอย่าง: หุ่นยนต์หลบสิ่งกีดขวาง
+
+```blocks
+basic.forever(function () {
+    PTKidsBITVX.oledShowValue("Distance", PTKidsBITVX.kidsDistance(), 1)
+    if (PTKidsBITVX.kidsObstacle(15)) {
+        PTKidsBITVX.robotMoveFor(Kids_Move.Backward, 50, 0.5)
+        PTKidsBITVX.robotSpinDegrees(Kids_LeftRight.Right, 90, 60)
+    } else {
+        PTKidsBITVX.robotMove(Kids_Move.Forward, 50)
+    }
+})
+```
+
+ตัวอย่าง: เดินตามเส้น
+
+```blocks
+PTKidsBITVX.lineSetupStandard()
+PTKidsBITVX.lineCalibrate()
+PTKidsBITVX.lineToJunction(Kids_Junction.Center, 2, 40)
+PTKidsBITVX.lineTurn(Kids_LeftRight.Left, 50)
+PTKidsBITVX.lineToJunction(Kids_Junction.Center, 1, 40)
+```
+
 ## OLED 1.3 inch (SH1106 128x64 I2C)
 
-Ported from Adafruit_SH110X (`Adafruit_SH1106G`) with the Adafruit GFX 5x7 font.
+Ported from Adafruit_SH110X (`Adafruit_SH1106G`) with the Adafruit GFX 5x7 font (English letters and numbers only).
 
 Wiring: `VCC` → 3V3, `GND` → GND, `SCL` → P19, `SDA` → P20 (I2C address 0x3C, or 0x3D)
 
 ```blocks
-PTKidsBITVX.oledInit(OLED_Address.Addr_0x3C)
-PTKidsBITVX.oledShowLine("PTKidsBIT VX", 0)
+PTKidsBITVX.oledShowLine("PTKidsBIT VX", 1)
 basic.forever(function () {
-    PTKidsBITVX.oledShowNumberLine(PTKidsBITVX.ADCRead(ADC_Read.ADC0), 2)
-    PTKidsBITVX.oledProgressBar(0, 40, 128, 12, PTKidsBITVX.ADCRead(ADC_Read.ADC0) / 40.95)
+    PTKidsBITVX.oledShowValue("ADC0", PTKidsBITVX.kidsSensor(Kids_Sensor.ADC0), 3)
 })
 ```
 
-Tip: turn `OLED auto update` OFF, draw several shapes, then call `OLED refresh` once for faster drawing without flicker.
+Tip (More...): turn `อัปเดตทันที` OFF, draw several shapes, then use `แสดงภาพที่วาด` once for faster drawing without flicker.

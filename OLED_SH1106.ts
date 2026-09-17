@@ -12,25 +12,25 @@ enum OLED_Address {
 }
 
 enum OLED_Color {
-    //% block="White"
+    //% block="ขาว"
     White = 1,
-    //% block="Black"
+    //% block="ดำ"
     Black = 0,
-    //% block="Inverse"
+    //% block="สลับสี"
     Inverse = 2
 }
 
 enum OLED_Fill {
-    //% block="Outline"
+    //% block="เส้นขอบ"
     Outline,
-    //% block="Filled"
+    //% block="ทึบ"
     Filled
 }
 
 enum OLED_OnOff {
-    //% block="ON"
+    //% block="เปิด"
     On,
-    //% block="OFF"
+    //% block="ปิด"
     Off
 }
 
@@ -216,22 +216,23 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         }
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Initialize OLED 1.3 inch (SH1106 128x64) on I2C (SCL=P19, SDA=P20)
      */
-    //% block="OLED init address %addr"
+    //% block="เริ่มใช้จอ OLED ที่อยู่ %addr"
+    //% advanced=true
     //% addr.defl=OLED_Address.Addr_0x3C
     //% weight=100
     export function oledInit(addr: OLED_Address): void {
         oledBegin(addr)
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Clear the whole screen
      */
-    //% block="OLED clear screen"
+    //% block="ล้างจอ OLED"
     //% weight=99
     export function oledClear(): void {
         oledCheck()
@@ -240,38 +241,39 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
-     * Show text on a line (0-7). The line is cleared before writing.
+     * แสดงข้อความที่บรรทัด 1-8 (ลบข้อความเดิมในบรรทัดนั้นก่อน)
      */
-    //% block="OLED show text %text|at line %line"
+    //% block="จอ OLED แสดงข้อความ %text|บรรทัดที่ %line"
     //% text.defl="Hello"
-    //% line.min=0 line.max=7 line.defl=0
+    //% line.min=1 line.max=8 line.defl=1
     //% weight=98
     export function oledShowLine(text: string, line: number): void {
         oledCheck()
-        line = Math.max(0, Math.min(7, Math.floor(line)))
+        line = Math.max(0, Math.min(7, Math.floor(line) - 1))
         oledFillRectRaw(0, line * 8, OLED_W, 8, OLED_Color.Black)
         oledText(text, 0, line * 8, 1, OLED_Color.White)
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
-     * Show a number on a line (0-7). The line is cleared before writing.
+     * แสดงตัวเลขที่บรรทัด 1-8
      */
-    //% block="OLED show number %num|at line %line"
-    //% line.min=0 line.max=7 line.defl=0
+    //% block="จอ OLED แสดงตัวเลข %num|บรรทัดที่ %line"
+    //% line.min=1 line.max=8 line.defl=2
     //% weight=97
     export function oledShowNumberLine(num: number, line: number): void {
         oledShowLine("" + num, line)
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Show text at position x (0-127), y (0-63) with size 1-4
      */
-    //% block="OLED show text %text|x %x|y %y|size %size|color %color"
+    //% block="จอ OLED เขียนข้อความ %text|ที่ x %x|y %y|ขนาด %size|สี %color"
+    //% advanced=true
     //% text.defl="PTKidsBIT"
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% size.min=1 size.max=4 size.defl=1
@@ -284,11 +286,12 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Show number at position x (0-127), y (0-63) with size 1-4
      */
-    //% block="OLED show number %num|x %x|y %y|size %size|color %color"
+    //% block="จอ OLED เขียนตัวเลข %num|ที่ x %x|y %y|ขนาด %size|สี %color"
+    //% advanced=true
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% size.min=1 size.max=4 size.defl=1
     //% color.defl=OLED_Color.White
@@ -298,11 +301,12 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledShowString("" + num, x, y, size, color)
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Draw a single pixel
      */
-    //% block="OLED draw pixel x %x|y %y|color %color"
+    //% block="จอ OLED วาดจุด x %x|y %y|สี %color"
+    //% advanced=true
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% color.defl=OLED_Color.White
     //% inlineInputMode=inline
@@ -313,11 +317,11 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Draw a line from (x0, y0) to (x1, y1)
      */
-    //% block="OLED draw line x0 %x0|y0 %y0|x1 %x1|y1 %y1|color %color"
+    //% block="จอ OLED วาดเส้นตรง จาก x %x0|y %y0|ไป x %x1|y %y1|สี %color"
     //% x0.min=0 x0.max=127 y0.min=0 y0.max=63
     //% x1.min=0 x1.max=127 y1.min=0 y1.max=63 x1.defl=127 y1.defl=63
     //% color.defl=OLED_Color.White
@@ -329,11 +333,11 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Draw a rectangle
      */
-    //% block="OLED draw rectangle x %x|y %y|width %w|height %h|%fill|color %color"
+    //% block="จอ OLED วาดสี่เหลี่ยม x %x|y %y|กว้าง %w|สูง %h|แบบ %fill|สี %color"
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% w.defl=40 h.defl=20
     //% color.defl=OLED_Color.White
@@ -356,11 +360,11 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Draw a circle with center (x, y) and radius r
      */
-    //% block="OLED draw circle x %x|y %y|radius %r|%fill|color %color"
+    //% block="จอ OLED วาดวงกลม x %x|y %y|รัศมี %r|แบบ %fill|สี %color"
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% x.defl=64 y.defl=32 r.defl=10
     //% color.defl=OLED_Color.White
@@ -410,11 +414,12 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Draw a progress bar (0-100 %)
      */
-    //% block="OLED progress bar x %x|y %y|width %w|height %h|value %value"
+    //% block="จอ OLED แถบพลัง x %x|y %y|กว้าง %w|สูง %h|ค่า %value|เปอร์เซ็นต์"
+    //% advanced=true
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% w.defl=100 h.defl=10
     //% value.min=0 value.max=100 value.defl=50
@@ -435,11 +440,41 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
+    /**
+     * แสดงชื่อและค่า เช่น ระยะ = 25 ที่บรรทัด 1-8
+     */
+    //% block="จอ OLED แสดง %label|= %value|บรรทัดที่ %line"
+    //% label.defl="Distance"
+    //% line.min=1 line.max=8 line.defl=3
+    //% inlineInputMode=inline
+    //% weight=97
+    export function oledShowValue(label: string, value: number, line: number): void {
+        oledShowLine(label + " = " + value, line)
+    }
+
+    //% group="จอ OLED"
+    /**
+     * แสดงข้อความตัวใหญ่ (สูง 2 บรรทัด) เริ่มที่บรรทัด 1-7
+     */
+    //% block="จอ OLED แสดงตัวใหญ่ %text|บรรทัดที่ %line"
+    //% text.defl="GO!"
+    //% line.min=1 line.max=7 line.defl=4
+    //% weight=96
+    export function oledShowBig(text: string, line: number): void {
+        oledCheck()
+        let y = Math.max(0, Math.min(6, Math.floor(line) - 1)) * 8
+        oledFillRectRaw(0, y, OLED_W, 16, OLED_Color.Black)
+        oledText(text, 0, y, 2, OLED_Color.White)
+        oledUpdate()
+    }
+
+    //% group="จอ OLED"
     /**
      * Invert the whole display colors
      */
-    //% block="OLED invert display %invert"
+    //% block="จอ OLED กลับสีทั้งจอ %invert"
+    //% advanced=true
     //% invert.shadow="toggleOnOff"
     //% weight=80
     export function oledInvert(invert: boolean): void {
@@ -447,11 +482,12 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledCommand(invert ? 0xA7 : 0xA6)
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Set display brightness (contrast) 0-255
      */
-    //% block="OLED set brightness %value"
+    //% block="จอ OLED ความสว่าง %value"
+    //% advanced=true
     //% value.min=0 value.max=255 value.defl=255
     //% weight=79
     export function oledBrightness(value: number): void {
@@ -459,23 +495,25 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledCommand2(0x81, Math.max(0, Math.min(255, Math.floor(value))))
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Turn display ON or OFF (keeps screen memory)
      */
-    //% block="OLED display %state"
+    //% block="จอ OLED %state จอ"
+    //% advanced=true
     //% weight=78
     export function oledDisplay(state: OLED_OnOff): void {
         oledCheck()
         oledCommand(state == OLED_OnOff.On ? 0xAF : 0xAE)
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Auto update: ON = each block refreshes the screen immediately.
      * OFF = draw many things, then use "OLED refresh" once (faster, no flicker).
      */
-    //% block="OLED auto update %on"
+    //% block="จอ OLED อัปเดตทันที %on"
+    //% advanced=true
     //% on.shadow="toggleOnOff" on.defl=true
     //% weight=77
     export function oledSetAutoUpdate(on: boolean): void {
@@ -483,11 +521,12 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         if (on) oledFlush()
     }
 
-    //% group="OLED 1.3 inch"
+    //% group="จอ OLED"
     /**
      * Send the drawing buffer to the screen
      */
-    //% block="OLED refresh"
+    //% block="จอ OLED แสดงภาพที่วาด"
+    //% advanced=true
     //% weight=76
     export function oledRefresh(): void {
         oledCheck()

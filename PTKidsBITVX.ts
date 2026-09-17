@@ -48,7 +48,7 @@ let EULER_P_MSB = 0x1F
 let EULER_Y_LSB = 0x1A
 let EULER_Y_MSB = 0x1B
 let initIMU = false
-let angle_offset: number[] = []
+let angle_offset: number[] = [0, 0, 0]
 
 enum Motor_Write {
     //% block="1"
@@ -183,7 +183,8 @@ enum Angle {
     Roll
 }
 
-//% color="#51cbc7" icon="\u2B9A"
+//% color="#51cbc7" icon="\u2B9A" block="PTKidsBIT VX"
+//% groups='["เคลื่อนที่", "เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace PTKidsBITVX {
     function initPCA(): void {
         let i2cData = pins.createBuffer(2)
@@ -290,7 +291,7 @@ namespace PTKidsBITVX {
         return adjustedYaw
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Stop all Motor
      */
@@ -303,7 +304,7 @@ namespace PTKidsBITVX {
         motorGo(0, 0, 0, 0)
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Forward or Backward with degrees.
      */
@@ -359,7 +360,7 @@ namespace PTKidsBITVX {
         motorStop()
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Forward or Backward with degrees.
      */
@@ -408,7 +409,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Spin the Robot to Degrees.
      */
@@ -460,7 +461,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Turn the Robot to Degrees.
      */
@@ -518,7 +519,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Spin the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
@@ -534,7 +535,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Turn the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
@@ -550,7 +551,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Control motors speed both at the same time. The speed motors is adjustable between -100 to 100.
      */
@@ -623,7 +624,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Motor Control"
+    //% group="Motor Control" advanced=true
     /**
      * Control motor speed 1 channel. The speed motor is adjustable between -100 to 100.
      */
@@ -686,7 +687,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Servo Control"
+    //% group="Servo Control" advanced=true
     /**
      * Control Servo Motor 0 - 180 Degrees
      */
@@ -720,7 +721,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Sensor and ADC"
+    //% group="Sensor and ADC" advanced=true
     /**
      * Read Angles from IMU
      */
@@ -743,7 +744,7 @@ namespace PTKidsBITVX {
         return 0
     }
 
-    //% group="Sensor and ADC"
+    //% group="Sensor and ADC" advanced=true
     /**
      * Set IMU offset to 0
      */
@@ -760,7 +761,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Sensor and ADC"
+    //% group="Sensor and ADC" advanced=true
     /**
      * Read Distance from Ultrasonic Sensor
      */
@@ -821,7 +822,7 @@ namespace PTKidsBITVX {
         return Math.round(distance)
     }
 
-    //% group="Sensor and ADC"
+    //% group="Sensor and ADC" advanced=true
     /**
      * Read Analog from ADC Channel
      */
@@ -832,7 +833,7 @@ namespace PTKidsBITVX {
         return ADCRead = pins.i2cReadNumber(0x48, NumberFormat.UInt16BE, false)
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Turn Left or Right Follower Line Mode
      */
@@ -907,7 +908,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Line Follower Forward Timer
      */
@@ -953,7 +954,7 @@ namespace PTKidsBITVX {
         motorStop()
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Line Follower Forward with Counter Line
      */
@@ -974,7 +975,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Line Follower Forward
      */
@@ -1210,7 +1211,7 @@ namespace PTKidsBITVX {
         }
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Basic Line Follower
      */
@@ -1244,7 +1245,7 @@ namespace PTKidsBITVX {
         motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Get Position Line
      */
@@ -1302,7 +1303,7 @@ namespace PTKidsBITVX {
         return Math.round(((Num_Sensor - 1) * 1000) - Last_Position)
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Print Sensor Value
      */
@@ -1340,7 +1341,7 @@ namespace PTKidsBITVX {
         serial.writeLine("" + sensor_right)
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Set Value Sensor
      */
@@ -1354,7 +1355,7 @@ namespace PTKidsBITVX {
         Color_Background_Right = ground_right
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Set Line Sensor Pin
      */
@@ -1367,7 +1368,7 @@ namespace PTKidsBITVX {
         LED_PIN = led_pin
     }
 
-    //% group="Line Follower"
+    //% group="Line Follower" advanced=true
     /**
      * Calibrate Sensor
      */
