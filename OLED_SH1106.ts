@@ -535,18 +535,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     // ================= เซ็นเซอร์บนจอ =================
 
     /**
-     * แปลงหมายเลขช่อง 0-7 เป็นคำสั่งอ่านของ ADS7828
-     */
-    function oledAdcCmd(ch: number): number {
-        let table = [
-            ADC_Read.ADC0, ADC_Read.ADC1, ADC_Read.ADC2, ADC_Read.ADC3,
-            ADC_Read.ADC4, ADC_Read.ADC5, ADC_Read.ADC6, ADC_Read.ADC7
-        ]
-        if (ch < 0 || ch > 7) return ADC_Read.ADC0
-        return table[ch]
-    }
-
-    /**
      * อ่านค่าที่สอนไว้แบบปลอดภัย ถ้ายังไม่ได้สอนจะได้ 0 แทนการอ่านเกินขอบอาเรย์
      */
     function oledCal(arr: number[], i: number): number {
@@ -558,8 +546,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * แปลงค่าดิบเป็น 0-100 โดย 100 = อยู่บนเส้น
      * ถ้ายังไม่ได้สอนเซ็นเซอร์ จะย่อค่าดิบ 12 บิตมาแสดงแทน เพื่อให้ยังเห็นค่าเปลี่ยน
      */
-    function oledSensorPct(ch: number, line: number, bg: number): number {
-        let raw = ADCRead(oledAdcCmd(ch))
+    function oledSensorPct(raw: number, line: number, bg: number): number {
         let v = 0
         if (line == bg) v = Math.idiv(raw * 100, 4095)
         else v = Math.idiv(pins.map(raw, line, bg, 1000, 0), 10)
@@ -567,19 +554,28 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * ค่าเซ็นเซอร์ทั้งแถวเป็นเปอร์เซ็นต์ เรียงซ้าย -> ขวา
+     * อ่านค่าดิบของเซ็นเซอร์กลุ่มหนึ่งครั้งเดียว
      */
-    function oledLineRow(): number[] {
+    function oledReadRaw(sensors: number[]): number[] {
         let out: number[] = []
-        for (let i = 0; i < Sensor_Left.length; i++) {
-            out.push(oledSensorPct(Sensor_Left[i], oledCal(Color_Line_Left, i), oledCal(Color_Background_Left, i)))
+        for (let i = 0; i < sensors.length; i++) out.push(ADCRead(adcCmd(sensors[i])))
+        return out
+    }
+
+    /**
+     * แปลงค่าดิบที่อ่านมาแล้วเป็นเปอร์เซ็นต์ทั้งกลุ่ม
+     */
+    function oledPctOf(raw: number[], line: number[], bg: number[]): number[] {
+        let out: number[] = []
+        for (let i = 0; i < raw.length; i++) {
+            out.push(oledSensorPct(raw[i], oledCal(line, i), oledCal(bg, i)))
         }
-        for (let i = 0; i < Sensor_PIN.length; i++) {
-            out.push(oledSensorPct(Sensor_PIN[i], oledCal(Color_Line, i), oledCal(Color_Background, i)))
-        }
-        for (let i = 0; i < Sensor_Right.length; i++) {
-            out.push(oledSensorPct(Sensor_Right[i], oledCal(Color_Line_Right, i), oledCal(Color_Background_Right, i)))
-        }
+        return out
+    }
+
+    function oledNumParts(values: number[]): string[] {
+        let out: string[] = []
+        for (let i = 0; i < values.length; i++) out.push("" + values[i])
         return out
     }
 
@@ -605,22 +601,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         lines.push(cur)
     }
 
-    function oledRawParts(sensors: number[]): string[] {
-        let out: string[] = []
-        for (let i = 0; i < sensors.length; i++) {
-            out.push("" + ADCRead(oledAdcCmd(sensors[i])))
-        }
-        return out
-    }
-
-    function oledPctParts(sensors: number[], line: number[], bg: number[]): string[] {
-        let out: string[] = []
-        for (let i = 0; i < sensors.length; i++) {
-            out.push("" + oledSensorPct(sensors[i], oledCal(line, i), oledCal(bg, i)))
-        }
-        return out
-    }
-
     /**
      * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
      * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
@@ -638,13 +618,17 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
             oledUpdate()
             return
         }
+        // อ่าน ADC ครั้งเดียวแล้วใช้ซ้ำทุกแถว ตัวเลขทุกแถวจึงมาจากจังหวะเดียวกัน
+        let rawL = oledReadRaw(Sensor_Left)
+        let rawC = oledReadRaw(Sensor_PIN)
+        let rawR = oledReadRaw(Sensor_Right)
         let lines: string[] = []
-        if (lineCalibrated()) lines.push("POS " + GETPosition() + "/" + (Num_Sensor - 1) * 1000)
+        if (lineCalibrated()) lines.push("POS " + positionFrom(rawC) + "/" + (Num_Sensor - 1) * 1000)
         else lines.push("NOT CALIBRATED")
-        oledAddRow(lines, "L", oledRawParts(Sensor_Left))
-        oledAddRow(lines, "C", oledRawParts(Sensor_PIN))
-        oledAddRow(lines, "R", oledRawParts(Sensor_Right))
-        oledAddRow(lines, "%", oledPctParts(Sensor_PIN, Color_Line, Color_Background))
+        oledAddRow(lines, "L", oledNumParts(rawL))
+        oledAddRow(lines, "C", oledNumParts(rawC))
+        oledAddRow(lines, "R", oledNumParts(rawR))
+        oledAddRow(lines, "%", oledNumParts(oledPctOf(rawC, Color_Line, Color_Background)))
         // จอสูง 64px ตัวอักษรสูง 8px จึงแสดงได้ 8 บรรทัด
         let rows = Math.min(8, lines.length)
         for (let i = 0; i < rows; i++) {
@@ -665,7 +649,17 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledCheck()
         oledBuf.fill(0)
         oledDirty = 0xFF
-        let pct = oledLineRow()
+        // อ่าน ADC ครั้งเดียว ทั้งแท่งกราฟและตำแหน่งเส้นใช้ค่าชุดเดียวกัน
+        let rawL = oledReadRaw(Sensor_Left)
+        let rawC = oledReadRaw(Sensor_PIN)
+        let rawR = oledReadRaw(Sensor_Right)
+        let pct: number[] = []
+        let pctL = oledPctOf(rawL, Color_Line_Left, Color_Background_Left)
+        let pctC = oledPctOf(rawC, Color_Line, Color_Background)
+        let pctR = oledPctOf(rawR, Color_Line_Right, Color_Background_Right)
+        for (let i = 0; i < pctL.length; i++) pct.push(pctL[i])
+        for (let i = 0; i < pctC.length; i++) pct.push(pctC[i])
+        for (let i = 0; i < pctR.length; i++) pct.push(pctR[i])
         let n = pct.length
         if (n == 0) {
             oledText("NO SENSOR SETUP", 0, 24, 1, OLED_Color.White)
@@ -673,7 +667,7 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
             return
         }
         if (lineCalibrated()) {
-            oledText("POS " + GETPosition(), 0, 0, 1, OLED_Color.White)
+            oledText("POS " + positionFrom(rawC), 0, 0, 1, OLED_Color.White)
         }
         else {
             oledText("NOT CALIBRATED", 0, 0, 1, OLED_Color.White)

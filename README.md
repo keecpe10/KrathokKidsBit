@@ -290,6 +290,8 @@ KrathokKidsBit.lineToJunction(Kids_Junction.Center, 1, 40)
 
 อ่านผ่านชิป ADS7828 (ADC 8 ช่อง 12 บิต) ที่อยู่ I2C `0x48` — `SCL` → P19, `SDA` → P20
 
+หมายเลขช่องที่ใส่ใน `LINESensorSET` และ `SensorCalibrate` คือ **0-7** เลขนอกช่วงนี้จะถูกตัดทิ้งพร้อมเสียงเตือนและขึ้น `PIN?` บนหน้าจอ micro:bit
+
 ผังมาตรฐานของบล็อก `ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน` ตรงกับ **PTKidsBIT Education Robot Kit**:
 
 ```
