@@ -402,6 +402,38 @@ namespace KrathokKidsBit {
         return whole + "." + (frac < 10 ? "0" + frac : "" + frac)
     }
 
+    /**
+     * หน่วงเวลาโดยเช็คปุ่ม B ทุก 20 ms คืน true ถ้ากดระหว่างรอ
+     */
+    function pauseUntilB(ms: number): boolean {
+        let steps = Math.idiv(ms, 20)
+        for (let i = 0; i < steps; i++) {
+            if (input.buttonIsPressed(Button.B)) return true
+            basic.pause(20)
+        }
+        return false
+    }
+
+    /**
+     * รอกดปุ่ม B โดยกระพริบตัว B สลับกับลูกศรชี้ไปทางปุ่ม
+     * ปุ่ม B อยู่ทางขวาของบอร์ด ลูกศรจึงชี้ไปทางตะวันออก
+     */
+    function waitButtonBHint(): void {
+        // ปล่อยปุ่มที่ค้างมาจากก่อนหน้าก่อน
+        while (input.buttonIsPressed(Button.B)) basic.pause(20)
+        while (!input.buttonIsPressed(Button.B)) {
+            // ลูกศร: interval 0 ผ่าน showImage คือวาดแล้วค้างไว้ ไม่ลบเอง
+            basic.showArrow(ArrowNames.East, 0)
+            if (pauseUntilB(600)) break
+            // ตัว B: ใช้เวลาแสดงจริงไม่ใช่ 0 เพราะ showString ที่ 0 อาจผ่านไปเร็วจนไม่ทันเห็น
+            basic.showString("B", 400)
+            if (pauseUntilB(200)) break
+        }
+        while (input.buttonIsPressed(Button.B)) basic.pause(20)
+        basic.pause(100)
+        basic.clearScreen()
+    }
+
     function tuneSay(line: number, text: string): void {
         serial.writeLine(text)
         // เขียนจอเฉพาะตอนที่จอเริ่มทำงานแล้ว จะได้ไม่ไปปลุกจอที่ไม่ได้ต่อไว้
@@ -568,9 +600,7 @@ namespace KrathokKidsBit {
         tuneSay(3, "put on line")
         tuneSay(4, "press B to start")
         music.playTone(587, music.beat(BeatFraction.Quarter))
-        basic.showString("B")
-        waitButtonB()
-        basic.clearScreen()
+        waitButtonBHint()
         music.playTone(784, music.beat(BeatFraction.Quarter))
 
         serial.writeLine("===== AUTO TUNE " + name + " speed " + speed + " =====")
