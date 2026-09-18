@@ -125,6 +125,24 @@ namespace KrathokKidsBit {
         return Kids_Band.Fast
     }
 
+    /**
+     * ช่วงความเร็วของแต่ละแถบ ใช้ให้ตรงกับตัวเลือกในบล็อก "ปรับความไว ช่วง"
+     */
+    function bandRange(band: number): string {
+        if (band == Kids_Band.Slow) return "0-40"
+        if (band == Kids_Band.Medium) return "41-60"
+        return "61-100"
+    }
+
+    /**
+     * ชื่อ enum ที่ใช้ในโหมด JavaScript เพื่อให้ก๊อปบรรทัดไปวางได้เลย
+     */
+    function bandEnumName(band: number): string {
+        if (band == Kids_Band.Slow) return "Kids_Band.Slow"
+        if (band == Kids_Band.Medium) return "Kids_Band.Medium"
+        return "Kids_Band.Fast"
+    }
+
     function bandName(band: number): string {
         if (band == Kids_Band.Slow) return "SLOW"
         if (band == Kids_Band.Medium) return "MED"
@@ -629,16 +647,36 @@ namespace KrathokKidsBit {
         // ขั้นที่ 3 หา KP ซ้ำโดยคงค่า KD ค่านี้คือค่าที่ใช้จริง
         kidsKPBand[band] = tuneNarrow("KP", true, speed, 0.02, 0.40, rounds)
 
+        let kpText = fmt2(kidsKPBand[band])
+        let kdText = fmt2(kidsKDBand[band])
         serial.writeLine("===== AUTO TUNE " + name + " DONE =====")
-        serial.writeLine("KP " + fmt2(kidsKPBand[band]) + "  KD " + fmt2(kidsKDBand[band]))
-        if (oledIsReady()) oledClear()
-        tuneSay(1, "AUTO TUNE " + name)
-        tuneSay(2, "KP " + fmt2(kidsKPBand[band]))
-        tuneSay(3, "KD " + fmt2(kidsKDBand[band]))
-        tuneSay(4, "write these down")
+        serial.writeLine("band " + name + " (speed " + bandRange(band) + ")  KP " + kpText + "  KD " + kdText)
+        // บรรทัดนี้ก๊อปไปวางในโหมด JavaScript ได้ทันที
+        serial.writeLine(">>> COPY THIS LINE INTO YOUR PROGRAM:")
+        serial.writeLine("KrathokKidsBit.lineTuningBand(" + bandEnumName(band) + ", " + kpText + ", " + kdText + ")")
+
         music.playTone(784, music.beat(BeatFraction.Quarter))
         music.playTone(988, music.beat(BeatFraction.Quarter))
         music.playTone(1175, music.beat(BeatFraction.Half))
+
+        // ค้างหน้าสรุปไว้จนกว่าจะกดปุ่ม A จะได้มีเวลาจดค่าลงบล็อก "ปรับความไว ช่วง"
+        if (oledIsReady()) {
+            oledClear()
+            oledShowLine("AUTO TUNE DONE", 1)
+            oledShowLine("band " + name + " " + bandRange(band), 2)
+            oledShowLine("KP " + kpText, 4)
+            oledShowLine("KD " + kdText, 5)
+            oledShowLine("put in block", 7)
+            oledShowLine("prabkwamwai chuang", 8)
+        }
+        while (!input.buttonIsPressed(Button.A)) {
+            // เลื่อนค่าบนจอ micro:bit ซ้ำไปเรื่อย ๆ เผื่อหุ่นไม่ได้ต่อจอ OLED
+            basic.showString("KP " + kpText + " KD " + kdText)
+            if (input.buttonIsPressed(Button.A)) break
+            basic.pause(300)
+        }
+        while (input.buttonIsPressed(Button.A)) basic.pause(20)
+        basic.clearScreen()
     }
 
     /**
