@@ -359,6 +359,21 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * ดรอปดาวน์เลือกหมายเลขช่อง ADC 0-7
+     * ใช้เป็น shadow ของพารามิเตอร์ช่อง จะได้เลือกแทนการพิมพ์
+     * ยังเป็นตัวเลขอยู่ จึงลากตัวแปรมาเสียบแทนได้เหมือนเดิม
+     * @param ch หมายเลขช่อง
+     */
+    //% blockId=kidsChannelPicker block="%ch"
+    //% blockHidden=true shim=TD_ID
+    //% colorSecondary="#FFFFFF"
+    //% ch.fieldEditor="numberdropdown" ch.fieldOptions.decompileLiterals=true
+    //% ch.fieldOptions.data='[["0", 0], ["1", 1], ["2", 2], ["3", 3], ["4", 4], ["5", 5], ["6", 6], ["7", 7]]'
+    export function __channelPicker(ch: number): number {
+        return ch
+    }
+
+    /**
      * ใส่ค่าคาลิเบรตของเซ็นเซอร์ทีละช่องเอง แทนการสอนด้วยปุ่ม A
      * ใช้ตอนรู้ค่าอยู่แล้ว จะได้ไม่ต้องสอนเซ็นเซอร์ใหม่ทุกครั้งก่อนปล่อยหุ่น
      * @param ch หมายเลขช่อง ADC 0-7
@@ -369,7 +384,7 @@ namespace KrathokKidsBit {
     //% subcategory="เดินตามเส้น"
     //% weight=85
     //% block="ตั้งค่าเซ็นเซอร์ช่อง $ch บนเส้น $onLine บนพื้น $onGround"
-    //% ch.min=0 ch.max=7 ch.defl=0
+    //% ch.shadow="kidsChannelPicker" ch.defl=0
     //% onLine.min=0 onLine.max=4095 onLine.defl=0
     //% onGround.min=0 onGround.max=4095 onGround.defl=4090
     //% inlineInputMode=inline
@@ -415,7 +430,7 @@ namespace KrathokKidsBit {
     //% subcategory="เดินตามเส้น"
     //% weight=83
     //% block="ค่าคาลิเบรตช่อง $ch $which"
-    //% ch.min=0 ch.max=7 ch.defl=0
+    //% ch.shadow="kidsChannelPicker" ch.defl=0
     //% inlineInputMode=inline
     export function getSensorCal(ch: number, which: Cal_Which): number {
         ch = Math.floor(ch)
