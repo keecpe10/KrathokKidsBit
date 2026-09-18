@@ -395,11 +395,32 @@ KrathokKidsBit.lineCalibrate()
 KrathokKidsBit.lineAutoTune(80, 2)
 ```
 
+จบแล้วจะ**ค้างหน้าสรุปไว้จนกว่าจะกดปุ่ม A** ให้มีเวลาจดค่าลงบล็อก
+
+จอ OLED:
 ```
-AUTO TUNE FAST
+AUTO TUNE DONE
+band FAST 61-100
+
 KP 0.14
 KD 4.00
-write these down
+
+put in block
+prabkwamwai chuang
+```
+
+จอ micro:bit เลื่อน `KP 0.14 KD 4.00` วนไปเรื่อยๆ เผื่อหุ่นไม่ได้ต่อจอ OLED
+
+ส่วน Show data ได้บรรทัดที่**ก๊อปไปวางในโหมด JavaScript ได้ทันที**:
+```
+>>> COPY THIS LINE INTO YOUR PROGRAM:
+KrathokKidsBit.lineTuningBand(Kids_Band.Fast, 0.14, 4.00)
+```
+
+เอาค่าไปใส่บล็อกให้ตรงช่วง แล้วครั้งหน้าไม่ต้องจูนอีก:
+
+```blocks
+KrathokKidsBit.lineTuningBand(Kids_Band.Fast, 0.14, 4)
 ```
 
 **เริ่มด้วยการกดปุ่ม B** วางบล็อกแล้วหุ่นจะยังไม่ออกวิ่งทันที — จะขึ้น `press B to start` บนจอ OLED ส่วนจอ micro:bit จะกระพริบ**ลูกศรชี้ไปทางปุ่ม B** สลับกับตัว `B` ให้วางหุ่นบนเส้นและถอยห่างก่อน
