@@ -60,6 +60,20 @@ enum Kids_Servo {
     S7
 }
 
+enum Kids_Grip {
+    //% block="เปิด"
+    Open,
+    //% block="หนีบ"
+    Close
+}
+
+enum Kids_Arm {
+    //% block="ยก"
+    Up,
+    //% block="ลง"
+    Down
+}
+
 enum Kids_Band {
     //% block="ช้า (0-40)"
     Slow = 0,
@@ -808,6 +822,122 @@ namespace KrathokKidsBit {
     }
 
     // ================= เซอร์โว =================
+
+    // ================= แขนและก้าม =================
+    // ค่าเริ่มต้นอ้างจากชุด PT KidsBIT (ก้ามที่เซอร์โวช่อง 1 เปิด 175 หนีบ 5)
+    // ส่วนมุมแขนเป็นค่ากลาง ๆ ต้องตั้งให้ตรงกับหุ่นของตัวเองก่อนใช้งานจริง
+    let gripServo = Kids_Servo.S0
+    let gripOpen = 175
+    let gripClose = 5
+    let armServo = Kids_Servo.S1
+    let armUp = 90
+    let armDown = 20
+    let armStepMs = 400
+
+    /**
+     * ตั้งค่าก้ามหนีบ ว่าอยู่เซอร์โวช่องไหน และมุมตอนเปิดกับตอนหนีบเป็นเท่าไร
+     * @param servo ช่องเซอร์โวของก้าม
+     * @param open มุมตอนอ้าก้าม
+     * @param close มุมตอนหนีบ
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=69
+    //% block="ตั้งค่าก้ามหนีบ ช่อง $servo เปิด $open องศา หนีบ $close องศา"
+    //% open.shadow="protractorPicker" open.defl=175
+    //% close.shadow="protractorPicker" close.defl=5
+    //% inlineInputMode=inline
+    export function gripSetup(servo: Kids_Servo, open: number, close: number): void {
+        gripServo = servo
+        gripOpen = kidsClamp(open, 0, 180)
+        gripClose = kidsClamp(close, 0, 180)
+    }
+
+    /**
+     * ตั้งค่าแขนยก ว่าอยู่เซอร์โวช่องไหน และมุมตอนยกกับตอนลงเป็นเท่าไร
+     * @param servo ช่องเซอร์โวของแขน
+     * @param up มุมตอนยกขึ้น
+     * @param down มุมตอนลดลง
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=68
+    //% block="ตั้งค่าแขนยก ช่อง $servo ยก $up องศา ลง $down องศา"
+    //% up.shadow="protractorPicker" up.defl=90
+    //% down.shadow="protractorPicker" down.defl=20
+    //% inlineInputMode=inline
+    export function armSetup(servo: Kids_Servo, up: number, down: number): void {
+        armServo = servo
+        armUp = kidsClamp(up, 0, 180)
+        armDown = kidsClamp(down, 0, 180)
+    }
+
+    /**
+     * รอให้เซอร์โวขยับถึงที่นานกี่มิลลิวินาที ก่อนทำท่าถัดไป
+     * ถ้าแขนหนักหรือขยับไกล ให้เพิ่มเวลา
+     * @param ms เวลารอต่อหนึ่งท่า
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=67
+    //% block="รอแขนขยับ $ms มิลลิวินาที"
+    //% ms.shadow="timePicker" ms.defl=400
+    export function armStepTime(ms: number): void {
+        armStepMs = Math.max(0, ms)
+    }
+
+    /**
+     * สั่งก้ามหนีบอย่างเดียว
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=66
+    //% block="ก้าม $action"
+    export function grip(action: Kids_Grip): void {
+        kidsServo(gripServo, action == Kids_Grip.Open ? gripOpen : gripClose)
+        basic.pause(armStepMs)
+    }
+
+    /**
+     * สั่งแขนอย่างเดียว
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=65
+    //% block="แขน $action"
+    export function arm(action: Kids_Arm): void {
+        kidsServo(armServo, action == Kids_Arm.Up ? armUp : armDown)
+        basic.pause(armStepMs)
+    }
+
+    /**
+     * จับของแล้วยกขึ้น ทำสี่ท่าต่อกัน
+     * อ้าก้าม -> ลดแขนลง -> หนีบ -> ยกแขนขึ้น
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=64
+    //% block="จับแล้วยก"
+    export function gripAndLift(): void {
+        grip(Kids_Grip.Open)
+        arm(Kids_Arm.Down)
+        grip(Kids_Grip.Close)
+        arm(Kids_Arm.Up)
+    }
+
+    /**
+     * วางของแล้วปล่อย ทำสามท่าต่อกัน
+     * ลดแขนลง -> อ้าก้ามปล่อยของ -> ยกแขนขึ้น
+     */
+    //% group="แขนและก้าม"
+    //% subcategory="เซอร์โว"
+    //% weight=63
+    //% block="วางแล้วปล่อย"
+    export function placeAndRelease(): void {
+        arm(Kids_Arm.Down)
+        grip(Kids_Grip.Open)
+        arm(Kids_Arm.Up)
+    }
 
     /**
      * หมุนเซอร์โวไปที่มุม 0-180 องศา
