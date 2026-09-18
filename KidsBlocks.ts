@@ -515,7 +515,26 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * ไล่ 4 ค่า คืน [ค่าที่ชนะ, ขนาดก้าว, เข้าเกณฑ์ noise แล้วหรือยัง 1/0]
+     * พร้อมจูนหรือยัง ถ้ายังไม่ได้สอนเซ็นเซอร์ก็วัดการส่ายไม่ได้ จูนไปก็ไม่มีความหมาย
+     */
+    function tuneReady(): boolean {
+        kidsLineReady()
+        if (lineCalibrated()) return true
+        serial.writeLine(">>> NOT CALIBRATED - teach the sensors first")
+        if (oledIsReady()) {
+            oledClear()
+            oledShowLine("CANNOT TUNE", 1)
+            oledShowLine("sensors not taught", 2)
+            oledShowLine("run calibrate first", 4)
+        }
+        music.playTone(262, music.beat(BeatFraction.Half))
+        music.playTone(196, music.beat(BeatFraction.Half))
+        basic.showString("CAL?")
+        return false
+    }
+
+    /**
+     * ไล่ 4 ค่า คืน [ค่าที่ชนะ, ขนาดก้าว, เข้าเกณฑ์ noise แล้วหรือยัง 1/0, วัดได้จริงไหม 1/0]
      */
     function tuneSweep(label: string, kdFixed: boolean, speed: number, from: number, to: number): number[] {
         kidsLineReady()
@@ -567,11 +586,23 @@ namespace KrathokKidsBit {
         for (let i = 0; i < 4; i++) {
             tuneSay(2 + i, (i == best ? ">" : " ") + fmt2(values[i]) + " a" + means[i] + " m" + peaks[i])
         }
+        // ถ้าคะแนนเท่ากันเป๊ะทั้งสี่ค่า หรือส่ายเฉลี่ยเป็น 0 แปลว่าไม่ได้วัดอะไรเลย
+        // เช่น ยังไม่ได้สอนเซ็นเซอร์ หุ่นไม่ขยับ หรือเซ็นเซอร์อ่านค่าเดิมตลอด
+        // กรณีนี้ตัวเลือก "ดีที่สุด" จะกลายเป็นค่าน้อยสุดของช่วงเสมอ ซึ่งไม่มีความหมาย
+        let allSame = true
+        for (let i = 1; i < 4; i++) if (means[i] != means[0]) allSame = false
+        let valid = (means[best] == 0 || allSame) ? 0 : 1
+
         serial.writeLine(">>> BEST " + label + " = " + fmt2(values[best]))
         tuneSay(6, "BEST " + fmt2(values[best]))
         // เกณฑ์เดียวกับโปรเจกต์ต้นแบบ: ถ้าสี่ค่าต่างกันน้อยกว่าความคลาดเคลื่อนของการวัด
         // ไล่ซ้ำต่อไปก็ได้แค่ noise
-        if (spread <= Math.max(2, Math.idiv(means[best] * 15, 100))) {
+        if (valid == 0) {
+            serial.writeLine(">>> NOTHING WAS MEASURED - all four scored the same")
+            serial.writeLine(">>> check: sensors taught? robot able to move? on the line?")
+            tuneSay(7, "NO SIGNAL - CHECK")
+        }
+        else if (spread <= Math.max(2, Math.idiv(means[best] * 15, 100))) {
             serial.writeLine(">>> ALL FOUR WITHIN NOISE - USE THIS VALUE")
             tuneSay(7, "ALL SAME - USE IT")
         }
@@ -581,7 +612,7 @@ namespace KrathokKidsBit {
         music.playTone(784, music.beat(BeatFraction.Quarter))
         music.playTone(988, music.beat(BeatFraction.Quarter))
         let quiet = spread <= Math.max(2, Math.idiv(means[best] * 15, 100)) ? 1 : 0
-        return [values[best], step, quiet]
+        return [values[best], step, quiet, valid]
     }
 
     /**
@@ -592,6 +623,11 @@ namespace KrathokKidsBit {
         for (let r = 0; r < rounds; r++) {
             serial.writeLine("-- " + label + " round " + (r + 1) + " : " + fmt2(lo) + " .. " + fmt2(hi))
             let res = tuneSweep(label, kdFixed, speed, lo, hi)
+            if (res[3] == 0) {
+                // วัดไม่ได้ ไม่เอาค่าที่ได้ไปใช้ คืน -1 ให้ผู้เรียกรู้ว่าล้มเหลว
+                serial.writeLine("-- " + label + " ABORTED, nothing measured")
+                return -1
+            }
             best = res[0]
             if (res[2] == 1) {
                 serial.writeLine("-- " + label + " settled after round " + (r + 1))
@@ -619,7 +655,7 @@ namespace KrathokKidsBit {
     //% rounds.min=1 rounds.max=5 rounds.defl=2
     //% inlineInputMode=inline
     export function lineAutoTune(speed: number, rounds: number): void {
-        kidsLineReady()
+        if (!tuneReady()) return
         speed = kidsClamp(speed, 0, 100)
         rounds = Math.max(1, Math.min(5, Math.floor(rounds)))
         let band = bandOf(speed)
@@ -637,15 +673,41 @@ namespace KrathokKidsBit {
 
         serial.writeLine("===== AUTO TUNE " + name + " speed " + speed + " =====")
 
+        // เก็บค่าเดิมไว้ ถ้าจูนล้มเหลวกลางทางจะได้คืนค่าเดิมแทนที่จะทิ้งค่าขยะไว้
+        let keepKP = kidsKPBand[band]
+        let keepKD = kidsKDBand[band]
+
         // ขั้นที่ 1 หา KP โดยปิด KD ได้แค่ค่าตั้งต้น
         kidsKDBand[band] = 0
-        kidsKPBand[band] = tuneNarrow("KP", false, speed, 0.02, 0.20, rounds)
+        let step1 = tuneNarrow("KP", false, speed, 0.02, 0.20, rounds)
+        if (step1 >= 0) kidsKPBand[band] = step1
 
         // ขั้นที่ 2 หา KD โดยใช้ KP จากขั้นที่ 1
-        kidsKDBand[band] = tuneNarrow("KD", true, speed, 0, 8, rounds)
+        let step2 = step1 < 0 ? -1 : tuneNarrow("KD", true, speed, 0, 8, rounds)
+        if (step2 >= 0) kidsKDBand[band] = step2
 
         // ขั้นที่ 3 หา KP ซ้ำโดยคงค่า KD ค่านี้คือค่าที่ใช้จริง
-        kidsKPBand[band] = tuneNarrow("KP", true, speed, 0.02, 0.40, rounds)
+        let step3 = step2 < 0 ? -1 : tuneNarrow("KP", true, speed, 0.02, 0.40, rounds)
+        if (step3 >= 0) kidsKPBand[band] = step3
+
+        if (step3 < 0) {
+            // ล้มเหลว คืนค่าเดิม ไม่เขียนทับด้วยค่าที่ไม่มีความหมาย
+            kidsKPBand[band] = keepKP
+            kidsKDBand[band] = keepKD
+            serial.writeLine("===== AUTO TUNE " + name + " FAILED - gains unchanged =====")
+            if (oledIsReady()) {
+                oledClear()
+                oledShowLine("AUTO TUNE FAILED", 1)
+                oledShowLine("nothing measured", 2)
+                oledShowLine("check sensors and", 4)
+                oledShowLine("that robot can move", 5)
+                oledShowLine("gains not changed", 7)
+            }
+            music.playTone(262, music.beat(BeatFraction.Half))
+            music.playTone(196, music.beat(BeatFraction.Half))
+            basic.showString("FAIL")
+            return
+        }
 
         let kpText = fmt2(kidsKPBand[band])
         let kdText = fmt2(kidsKDBand[band])
@@ -694,8 +756,11 @@ namespace KrathokKidsBit {
     //% from.defl=0.02 to.defl=0.20
     //% inlineInputMode=inline
     export function lineTuneKpNoKd(speed: number, from: number, to: number): void {
+        if (!tuneReady()) return
         let band = bandOf(kidsClamp(speed, 0, 100))
-        kidsKPBand[band] = tuneSweep("KP", false, speed, from, to)[0]
+        let r = tuneSweep("KP", false, speed, from, to)
+        if (r[3] == 0) return
+        kidsKPBand[band] = r[0]
         kidsKDBand[band] = 0
     }
 
@@ -710,7 +775,10 @@ namespace KrathokKidsBit {
     //% from.defl=0 to.defl=8
     //% inlineInputMode=inline
     export function lineTuneKd(speed: number, from: number, to: number): void {
-        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KD", true, speed, from, to)[0]
+        if (!tuneReady()) return
+        let rkd = tuneSweep("KD", true, speed, from, to)
+        if (rkd[3] == 0) return
+        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = rkd[0]
     }
 
     /**
@@ -725,7 +793,10 @@ namespace KrathokKidsBit {
     //% from.defl=0.02 to.defl=0.40
     //% inlineInputMode=inline
     export function lineTuneKpWithKd(speed: number, from: number, to: number): void {
-        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = tuneSweep("KP", true, speed, from, to)[0]
+        if (!tuneReady()) return
+        let rkp = tuneSweep("KP", true, speed, from, to)
+        if (rkp[3] == 0) return
+        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = rkp[0]
     }
 
     /**
