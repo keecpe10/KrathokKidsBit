@@ -534,6 +534,29 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * บอกว่าทำไมวัดไม่ได้ ดูจากค่าที่ normalize แล้วของเซ็นเซอร์กลาง
+     * ถ้าทุกตัวออกมาเท่ากันสุดขอบ แปลว่าค่าคาลิเบรตไม่ครอบค่าที่อ่านได้จริง
+     */
+    function calDiagnosis(): string {
+        let raw = readCenterRaw()
+        if (raw.length == 0) return "NO SENSOR SETUP"
+        let allLine = true
+        let allFloor = true
+        let rawText = ""
+        for (let i = 0; i < raw.length; i++) {
+            let v = pins.map(raw[i], Color_Line[i], Color_Background[i], 1000, 0)
+            if (v < 900) allLine = false
+            if (v > 100) allFloor = false
+            rawText += " " + raw[i]
+        }
+        serial.writeLine(">>> raw now:" + rawText)
+        serial.writeLine(">>> taught line " + Color_Line[0] + " ground " + Color_Background[0])
+        if (allLine) return "ALL READ AS LINE"
+        if (allFloor) return "ALL READ AS FLOOR"
+        return "ROBOT NOT MOVING?"
+    }
+
+    /**
      * ไล่ 4 ค่า คืน [ค่าที่ชนะ, ขนาดก้าว, เข้าเกณฑ์ noise แล้วหรือยัง 1/0, วัดได้จริงไหม 1/0]
      */
     function tuneSweep(label: string, kdFixed: boolean, speed: number, from: number, to: number): number[] {
@@ -599,8 +622,9 @@ namespace KrathokKidsBit {
         // ไล่ซ้ำต่อไปก็ได้แค่ noise
         if (valid == 0) {
             serial.writeLine(">>> NOTHING WAS MEASURED - all four scored the same")
-            serial.writeLine(">>> check: sensors taught? robot able to move? on the line?")
-            tuneSay(7, "NO SIGNAL - CHECK")
+            let why = calDiagnosis()
+            serial.writeLine(">>> " + why)
+            tuneSay(7, why)
         }
         else if (spread <= Math.max(2, Math.idiv(means[best] * 15, 100))) {
             serial.writeLine(">>> ALL FOUR WITHIN NOISE - USE THIS VALUE")
@@ -695,13 +719,18 @@ namespace KrathokKidsBit {
             kidsKPBand[band] = keepKP
             kidsKDBand[band] = keepKD
             serial.writeLine("===== AUTO TUNE " + name + " FAILED - gains unchanged =====")
+            let why = calDiagnosis()
+            serial.writeLine(">>> " + why)
             if (oledIsReady()) {
                 oledClear()
                 oledShowLine("AUTO TUNE FAILED", 1)
-                oledShowLine("nothing measured", 2)
-                oledShowLine("check sensors and", 4)
-                oledShowLine("that robot can move", 5)
-                oledShowLine("gains not changed", 7)
+                oledShowLine(why, 2)
+                if (why == "ALL READ AS LINE" || why == "ALL READ AS FLOOR") {
+                    oledShowLine("cal range is wrong", 4)
+                    oledShowLine("measure real values", 5)
+                    oledShowLine("with sensor blocks", 6)
+                }
+                oledShowLine("gains not changed", 8)
             }
             music.playTone(262, music.beat(BeatFraction.Half))
             music.playTone(196, music.beat(BeatFraction.Half))
