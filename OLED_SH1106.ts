@@ -740,6 +740,63 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         oledUpdate()
     }
 
+    /** เติมช่องว่างหน้าข้อความให้ครบความกว้าง เพื่อให้ตัวเลขตรงคอลัมน์ */
+    function oledPadLeft(text: string, width: number): string {
+        let out = text
+        while (out.length < width) out = " " + out
+        return out
+    }
+
+    /** ช่องที่ควรแสดงค่าคาลิเบรต = ช่องที่ตั้งไว้ในผัง รวมกับช่องที่ถูกสอนค่าไว้ */
+    function oledCalChannels(): number[] {
+        let out: number[] = []
+        for (let ch = 0; ch <= 7; ch++) {
+            if (oledChIn(Sensor_PIN, ch) || oledChIn(Sensor_Left, ch)
+                || oledChIn(Sensor_Right, ch) || channelTaught(ch)) out.push(ch)
+        }
+        return out
+    }
+
+    /**
+     * แสดงค่าคาลิเบรตที่เก็บไว้ของทุกช่อง ทั้งค่าบนเส้นและค่าบนพื้น
+     * ใช้ตรวจว่าค่าที่สอนหรือใส่ไว้ตรงกับที่เซ็นเซอร์อ่านได้จริงไหม
+     * ช่องที่ยังไม่ได้ตั้งค่าจะขึ้นขีด
+     */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=57
+    //% block="จอ OLED แสดงค่าคาลิเบรต"
+    export function oledShowCalibration(): void {
+        oledCheck()
+        oledBuf.fill(0)
+        oledDirty = 0xFF
+        let chs = oledCalChannels()
+        if (chs.length == 0) {
+            oledText("NO SENSOR SETUP", 0, 24, 1, OLED_Color.White)
+            oledUpdate()
+            return
+        }
+        // จอสูง 64 px แสดงได้ 8 บรรทัด ถ้าช่องไม่เกิน 7 ยังเหลือที่ใส่หัวตาราง
+        let row = 0
+        if (chs.length <= 7) {
+            oledText("CH LINE  GND", 0, 0, 1, OLED_Color.White)
+            row = 1
+        }
+        for (let i = 0; i < chs.length && row + i < 8; i++) {
+            let ch = chs[i]
+            let line = "-"
+            let ground = "-"
+            if (channelTaught(ch)) {
+                line = "" + getSensorCal(ch, Cal_Which.Line)
+                ground = "" + getSensorCal(ch, Cal_Which.Ground)
+            }
+            let text = oledPadLeft("" + ch, 2) + " "
+                + oledPadLeft(line, 4) + " " + oledPadLeft(ground, 4)
+            oledText(text, 0, (row + i) * 8, 1, OLED_Color.White)
+        }
+        oledUpdate()
+    }
+
     /**
      * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นกราฟแท่ง เรียงตามตำแหน่งจริงซ้าย -> ขวา
      * แท่งยิ่งสูง = ยิ่งเห็นเส้นชัด แถบทึบใต้แท่ง = เซ็นเซอร์ตัวนั้นอยู่บนเส้น

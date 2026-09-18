@@ -349,6 +349,15 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * ช่องนี้ถูกสอนหรือใส่ค่าไว้แล้วหรือยัง
+     * ใช้แยกระหว่าง "ยังไม่ได้ตั้ง" กับ "ตั้งไว้เป็น 0 จริง ๆ"
+     */
+    export function channelTaught(ch: number): boolean {
+        if (!validCh(ch)) return false
+        return Cal_Has_Ch[ch]
+    }
+
+    /**
      * สอนเซ็นเซอร์ครบทุกตัวที่ตั้งค่าไว้แล้วหรือยัง
      */
     export function lineCalibrated(): boolean {
