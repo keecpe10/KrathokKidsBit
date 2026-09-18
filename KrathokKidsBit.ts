@@ -21,6 +21,8 @@ let Color_Background_Left: number[] = []
 let Color_Line_Right: number[] = []
 let Color_Background_Right: number[] = []
 const ADS7828_ADDR = 0x48   // ADS7828 ตั้งได้ 0x48-0x4B ด้วยขา A0/A1
+// ตั้งเป็น true แล้วจะไม่มีทางกลับเป็น false ได้อีกจนกว่าจะรีเซทหรือเปิดเครื่องใหม่
+let kidsHalted = false
 let Line_Mode = 0
 let Last_Position = 0
 let error = 0
@@ -365,6 +367,38 @@ namespace KrathokKidsBit {
         Cal_Line_Ch[ch] = Math.max(0, Math.min(4095, Math.floor(onLine)))
         Cal_Bg_Ch[ch] = Math.max(0, Math.min(4095, Math.floor(onGround)))
         Cal_Has_Ch[ch] = true
+    }
+
+    /**
+     * หยุดการทำงานทั้งหมด หุ่นจะไม่ขยับอีกเลยจนกว่าจะกดปุ่มรีเซทหรือปิดเปิดเครื่องใหม่
+     * ใช้ตอนต้องหยุดฉุกเฉิน หรือจบภารกิจแล้วไม่อยากให้หุ่นทำอะไรต่อ
+     *
+     * มอเตอร์ถูกสั่งหยุดและถูกล็อกไว้ที่ 0 เซอร์โวไม่รับคำสั่งอีก
+     * และลูปเกาะเส้นที่ค้างอยู่จะออกจากลูปเอง ต่อให้มีบล็อกอื่นเรียกซ้ำก็ไม่ขยับ
+     */
+    //% group="เคลื่อนที่พื้นฐาน"
+    //% weight=10
+    //% block="หยุดทำงานทั้งหมด"
+    export function haltAll(): void {
+        kidsHalted = true
+        motorStop()
+        setLineLED(false)
+        music.playTone(523, music.beat(BeatFraction.Quarter))
+        music.playTone(392, music.beat(BeatFraction.Quarter))
+        music.playTone(262, music.beat(BeatFraction.Half))
+        if (oledIsReady()) {
+            oledClear()
+            oledShowLine("STOP", 1)
+            oledShowLine("press RESET", 3)
+            oledShowLine("or power off", 4)
+        }
+        basic.showString("STOP")
+        basic.showIcon(IconNames.No)
+        // ค้างอยู่ตรงนี้ตลอด ไม่มีทางออกนอกจากรีเซท
+        while (true) {
+            motorStop()
+            basic.pause(1000)
+        }
     }
 
     /**
@@ -843,6 +877,14 @@ namespace KrathokKidsBit {
     //% speed3.defl=50
     //% speed4.defl=50
     export function motorGo(speed1: number, speed2: number, speed3: number, speed4: number): void {
+        // หลังสั่งหยุดทำงานทั้งหมด บังคับเป็น 0 แทนการ return
+        // เพื่อให้ขามอเตอร์ถูกขับให้หยุดจริง ไม่ใช่ค้างค่าเดิมไว้
+        if (kidsHalted) {
+            speed1 = 0
+            speed2 = 0
+            speed3 = 0
+            speed4 = 0
+        }
         speed1 = pins.map(speed1, -100, 100, -1023, 1023)
         speed2 = pins.map(speed2, -100, 100, -1023, 1023)
         speed3 = pins.map(speed3, -100, 100, -1023, 1023)
@@ -912,6 +954,7 @@ namespace KrathokKidsBit {
     //% speed.min=-100 speed.max=100
     //% speed.defl=50
     export function motorWrite(motor: Motor_Write, speed: number): void {
+        if (kidsHalted) speed = 0
         speed = pins.map(speed, -100, 100, -1023, 1023)
 
         if (speed < -1023) speed = -1023
@@ -977,6 +1020,7 @@ namespace KrathokKidsBit {
     //% degree.min=0 degree.max=180
     //% degree.defl=90
     export function servoWrite(servo: Servo_Write, degree: number): void {
+        if (kidsHalted) return
         if (servo == Servo_Write.S0) {
             setServoPCA(0, degree)
         }
@@ -1157,6 +1201,7 @@ namespace KrathokKidsBit {
         let motor_speed = 0
         let motor_slow = Math.round(speed / 2)
         while (1) {
+            if (kidsHalted) break
             on_line = 0
             for (let i = 0; i < Sensor_PIN.length; i++) {
                 if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)) >= 500) {
@@ -1177,6 +1222,7 @@ namespace KrathokKidsBit {
         }
         timer = control.millis()
         while (1) {
+            if (kidsHalted) break
             if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[adc_sensor_pin]]), Color_Line[adc_sensor_pin], Color_Background[adc_sensor_pin], 1000, 0)) >= 500) {
                 basic.pause(break_delay)
                 motorStop()
@@ -1307,6 +1353,7 @@ namespace KrathokKidsBit {
         previous_error = 0
 
         while (1) {
+            if (kidsHalted) break
             found_left = 0
             found_right = 0
             for (let i = 0; i < Sensor_Left.length; i++) {
@@ -1337,6 +1384,7 @@ namespace KrathokKidsBit {
         found_right = 0
 
         while (1) {
+            if (kidsHalted) break
             for (let i = 0; i < Sensor_PIN.length; i++) {
                 if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)) >= 200) {
                     last_center += 1
@@ -1420,6 +1468,7 @@ namespace KrathokKidsBit {
                     motorGo(-min_speed, -min_speed, -min_speed, -min_speed)
                 }
                 while (1) {
+            if (kidsHalted) break
                     for (let i = 0; i < Sensor_Left.length; i++) {
                         if ((pins.map(ADCRead(ADC_PIN[Sensor_Left[i]]), Color_Line_Left[i], Color_Background_Left[i], 1000, 0)) >= 500) {
                             last_left += 1
