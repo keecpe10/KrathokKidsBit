@@ -205,11 +205,20 @@ namespace KrathokKidsBit {
     /**
      * รอจนกดปุ่ม A แล้วปล่อย ป้องกันการกดค้างข้ามไปยังขั้นตอนถัดไป
      */
-    export function waitButtonA(): void {
-        while (input.buttonIsPressed(Button.A)) basic.pause(20)
-        while (!input.buttonIsPressed(Button.A)) basic.pause(20)
-        while (input.buttonIsPressed(Button.A)) basic.pause(20)
+    export function waitButton(btn: Button): void {
+        // ถ้าปุ่มยังค้างจากขั้นก่อนหน้า รอให้ปล่อยก่อน แล้วค่อยรอกดใหม่
+        while (input.buttonIsPressed(btn)) basic.pause(20)
+        while (!input.buttonIsPressed(btn)) basic.pause(20)
+        while (input.buttonIsPressed(btn)) basic.pause(20)
         basic.pause(100)
+    }
+
+    export function waitButtonA(): void {
+        waitButton(Button.A)
+    }
+
+    export function waitButtonB(): void {
+        waitButton(Button.B)
     }
 
     /**
