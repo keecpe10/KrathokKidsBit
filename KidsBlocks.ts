@@ -560,6 +560,19 @@ namespace KrathokKidsBit {
         rounds = Math.max(1, Math.min(5, Math.floor(rounds)))
         let band = bandOf(speed)
         let name = bandName(band)
+
+        // รอกดปุ่ม B ก่อน จะได้วางหุ่นบนเส้นและเตรียมตัวให้พร้อมก่อนหุ่นออกวิ่ง
+        if (oledIsReady()) oledClear()
+        tuneSay(1, "AUTO TUNE " + name)
+        tuneSay(2, "speed " + speed + " rounds " + rounds)
+        tuneSay(3, "put on line")
+        tuneSay(4, "press B to start")
+        music.playTone(587, music.beat(BeatFraction.Quarter))
+        basic.showString("B")
+        waitButtonB()
+        basic.clearScreen()
+        music.playTone(784, music.beat(BeatFraction.Quarter))
+
         serial.writeLine("===== AUTO TUNE " + name + " speed " + speed + " =====")
 
         // ขั้นที่ 1 หา KP โดยปิด KD ได้แค่ค่าตั้งต้น
