@@ -578,11 +578,11 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
 
     /**
      * แปลงค่าดิบเป็น 0-100 โดย 100 = อยู่บนเส้น
-     * ถ้ายังไม่ได้สอนเซ็นเซอร์ จะย่อค่าดิบ 12 บิตมาแสดงแทน เพื่อให้ยังเห็นค่าเปลี่ยน
+     * ถ้ายังไม่ได้สอนเซ็นเซอร์ จะย่อค่าดิบตามสเกลจริงของบอร์ดมาแสดงแทน
      */
     function oledSensorPct(raw: number, line: number, bg: number): number {
         let v = 0
-        if (line == bg) v = Math.idiv(raw * 100, 4095)
+        if (line == bg) v = Math.idiv(raw * 100, adcFullScale())
         else v = Math.idiv(pins.map(raw, line, bg, 1000, 0), 10)
         return Math.max(0, Math.min(100, v))
     }
@@ -781,12 +781,18 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     //% weight=56
     //% block="จอ OLED ตรวจสอบฮาร์ดแวร์"
     export function oledHardwareCheck(): void {
-        // ADS7828 ตั้งที่อยู่ได้ 0x48-0x4B ด้วยขา A0/A1 จึงไล่หาให้ครบ
+        // บอร์ดรุ่นใหม่ใช้ ADC ที่ 0x49 คืนค่า 8 บิต รุ่นเดิมใช้ ADS7828 ที่ 0x48 คืน 12 บิต
+        // ไล่ต่อถึง 0x4B ด้วย เพราะ ADS7828 ตั้งที่อยู่ได้ด้วยขา A0/A1
         let adcAt = -1
-        for (let a = 0x48; a <= 0x4B; a++) {
-            if (i2cPresent(a)) {
-                adcAt = a
-                break
+        if (i2cPresent(ADC_V2_ADDR)) adcAt = ADC_V2_ADDR
+        else if (i2cPresent(ADS7828_ADDR)) adcAt = ADS7828_ADDR
+        else {
+            // ยังไม่เจอ ลองที่อยู่ที่เหลือของ ADS7828 ซึ่งตั้งได้ด้วยขา A0/A1
+            for (let a = 0x4A; a <= 0x4B; a++) {
+                if (i2cPresent(a)) {
+                    adcAt = a
+                    break
+                }
             }
         }
         let motorAt = i2cPresent(PCA) ? PCA : -1
@@ -797,9 +803,11 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         let rows: string[] = []
         let adcRow = "ADC   "
         if (adcAt < 0) adcRow += "NOT FOUND"
-        else if (adcAt == ADS7828_ADDR) adcRow += "0x" + oledHex2(adcAt) + " OK"
-        // เจอ ADC แต่คนละที่อยู่กับที่โค้ดใช้อยู่ ค่าที่อ่านได้จะไม่ถูกต้อง
-        else adcRow += "0x" + oledHex2(adcAt) + " NOT 0x" + oledHex2(ADS7828_ADDR)
+        // บอกสเกลที่ใช้จริงด้วย เพราะสองรุ่นให้ช่วงค่าต่างกันคนละเท่า
+        else if (adcAt == ADS7828_ADDR) adcRow += "0x" + oledHex2(adcAt) + " 12BIT"
+        else if (adcAt == ADC_V2_ADDR) adcRow += "0x" + oledHex2(adcAt) + " 8BIT"
+        // เจอชิปที่ที่อยู่ซึ่งโค้ดยังไม่รองรับ ค่าที่อ่านได้จะไม่ถูกต้อง
+        else adcRow += "0x" + oledHex2(adcAt) + " UNKNOWN"
         rows.push(adcRow)
         rows.push("MOTOR " + (motorAt < 0 ? "NOT FOUND" : "0x" + oledHex2(motorAt) + " OK"))
         rows.push("OLED  " + (oledAt < 0 ? "NOT FOUND" : "0x" + oledHex2(oledAt) + " OK"))

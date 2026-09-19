@@ -21,6 +21,9 @@ let Color_Background_Left: number[] = []
 let Color_Line_Right: number[] = []
 let Color_Background_Right: number[] = []
 const ADS7828_ADDR = 0x48   // ADS7828 ตั้งได้ 0x48-0x4B ด้วยขา A0/A1
+const ADC_V2_ADDR = 0x49    // บอร์ดรุ่นใหม่ใช้ ADC อีกตัวที่ 0x49 คืนค่า 8 บิต
+// 0 = ยังไม่ได้ตรวจ, 1 = 0x48 คืน 12 บิต (0-4095), 2 = 0x49 คืน 8 บิต (0-255)
+let adcVersion = 0
 // ตั้งเป็น true แล้วจะไม่มีทางกลับเป็น false ได้อีกจนกว่าจะรีเซทหรือเปิดเครื่องใหม่
 let kidsHalted = false
 let Line_Mode = 0
@@ -288,6 +291,26 @@ namespace KrathokKidsBit {
         if (r < -top) r = -top
         left_motor_speed = l
         right_motor_speed = r
+    }
+
+    /**
+     * ตรวจว่าบอร์ดใช้ ADC รุ่นไหน ตรวจครั้งเดียวแล้วจำไว้
+     * รุ่นใหม่มีชิปตอบที่ 0x49 รุ่นเดิมไม่มี จึงแยกได้ด้วยการลองเขียนหาดู
+     */
+    function adcDetect(): void {
+        if (adcVersion != 0) return
+        let probe = pins.createBuffer(1)
+        probe[0] = ADC_Read.ADC0
+        adcVersion = pins.i2cWriteBuffer(ADC_V2_ADDR, probe, false) == 0 ? 2 : 1
+    }
+
+    /**
+     * ค่าสูงสุดที่ ADC ของบอร์ดนี้อ่านได้ 4095 สำหรับ 12 บิต หรือ 255 สำหรับ 8 บิต
+     * ใช้กับโค้ดที่ต้องรู้สเกลจริง เช่น เกณฑ์คาลิเบรตและการคิดเปอร์เซ็นต์
+     */
+    export function adcFullScale(): number {
+        adcDetect()
+        return adcVersion == 2 ? 255 : 4095
     }
 
     /**
@@ -1172,6 +1195,12 @@ namespace KrathokKidsBit {
     //% weight=80
     //% block="Read ADC %ADC_Read"
     export function ADCRead(channel: ADC_Read): number {
+        adcDetect()
+        if (adcVersion == 2) {
+            pins.i2cWriteNumber(ADC_V2_ADDR, channel, NumberFormat.UInt8LE, false)
+            control.waitMicros(100)
+            return pins.i2cReadNumber(ADC_V2_ADDR, NumberFormat.UInt8LE, false) & 0xFF
+        }
         pins.i2cWriteNumber(ADS7828_ADDR, channel, NumberFormat.UInt8LE, false)
         control.waitMicros(100)
         // ADS7828 ส่งค่า 12 บิตมาใน 2 ไบต์ โดยไบต์แรกมีศูนย์นำหน้า 4 บิต
@@ -1676,7 +1705,7 @@ namespace KrathokKidsBit {
     // จึงใช้แรมคงที่ ไม่ว่าจะลากนานแค่ไหน
     const CAL_SWEEP_STEP = 10        // เวลาต่อหนึ่งรอบอ่าน (ms)
     const CAL_SWEEP_EDGE = 25        // นับเป็น "ปลายสุด" เมื่ออยู่ใน % นี้ของช่วง
-    const CAL_SWEEP_MIN_RANGE = 150  // ต่างกันน้อยกว่านี้ถือว่าเซ็นเซอร์ไม่เคยผ่านเส้น
+    const CAL_SWEEP_MIN_RANGE = 150  // ต่างกันน้อยกว่านี้ถือว่าไม่เคยผ่านเส้น (สเกล 12 บิต)
 
     let calSweepBar = -1
 
@@ -1722,7 +1751,7 @@ namespace KrathokKidsBit {
         let lastB: number[] = []     // -1 = ช่วงกลาง, 0 = ปลายต่ำ, 1 = ปลายสูง
         for (let i = 0; i < n; i++) {
             cmd.push(adcCmd(chs[i]))
-            vmin.push(4095)
+            vmin.push(adcFullScale())
             vmax.push(0)
             loSum.push(0)
             loCnt.push(0)
@@ -1823,7 +1852,8 @@ namespace KrathokKidsBit {
             let ch = chs[i]
             // ไม่ผ่านเมื่อช่วงแคบเกิน (ไม่เคยผ่านเส้น) หรือเก็บได้ไม่ครบทั้งสองปลาย
             // (หยุดลากไปก่อนช่วงที่ 2 จบ) ช่องที่ไม่ผ่านจะคงค่าเดิมไว้ ไม่เขียนทับของดี
-            if (vmax[i] - vmin[i] < CAL_SWEEP_MIN_RANGE || loCnt[i] == 0 || hiCnt[i] == 0) {
+            let minRange = Math.idiv(CAL_SWEEP_MIN_RANGE * adcFullScale(), 4095)
+            if (vmax[i] - vmin[i] < minRange || loCnt[i] == 0 || hiCnt[i] == 0) {
                 failed.push(ch)
                 continue
             }
