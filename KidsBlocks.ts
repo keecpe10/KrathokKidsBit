@@ -1021,12 +1021,12 @@ namespace KrathokKidsBit {
      * @param armServoCh ช่องเซอร์โวของแขน
      * @param up มุมตอนยกแขน
      * @param down มุมตอนลดแขน
-     * @param ms เวลารอให้เซอร์โวขยับถึงที่ต่อหนึ่งท่า ถ้าแขนหนักหรือขยับไกลให้เพิ่มเวลา
+     * @param ms เวลาที่ใช้ขยับต่อหนึ่งท่า (ค่อยๆ หมุน) ถ้าอยากให้นุ่มขึ้นหรือแขนหนักให้เพิ่มเวลา
      */
     //% group="แขนและก้าม"
     //% subcategory="เซอร์โว"
     //% weight=69
-    //% block="ตั้งค่าแขนกล ก้ามช่อง $gripServoCh เปิด $open หนีบ $close|แขนช่อง $armServoCh ยก $up ลง $down||รอท่าละ $ms มิลลิวินาที"
+    //% block="ตั้งค่าแขนกล ก้ามช่อง $gripServoCh เปิด $open หนีบ $close|แขนช่อง $armServoCh ยก $up ลง $down||ขยับท่าละ $ms มิลลิวินาที"
     //% expandableArgumentMode="toggle"
     //% gripServoCh.defl=Kids_Servo.S0 armServoCh.defl=Kids_Servo.S1
     //% open.shadow="protractorPicker" open.defl=175
@@ -1045,10 +1045,17 @@ namespace KrathokKidsBit {
         armStepMs = Math.max(0, ms)
     }
 
-    // ขยับเซอร์โวหนึ่งท่า แล้วรอให้ถึงที่
+    // ขยับเซอร์โวหนึ่งท่าแบบค่อยๆ หมุน ใช้เวลา armStepMs
+    // ถ้ายังไม่รู้มุมเดิม (ครั้งแรกหลังเปิดเครื่อง) ค่อยๆ หมุนไม่ได้
+    // จึงหมุนไปทันทีแล้วรอให้ถึงที่แทน
     function armMove(servo: Kids_Servo, degrees: number): void {
-        kidsServo(servo, degrees)
-        basic.pause(armStepMs)
+        if (servoLast[servo] < 0) {
+            kidsServo(servo, degrees)
+            basic.pause(armStepMs)
+        }
+        else {
+            kidsServoSmooth(servo, degrees, armStepMs / 1000)
+        }
     }
 
     /**
