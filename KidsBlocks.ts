@@ -371,6 +371,62 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * วัดระยะด้วยอัลตราโซนิก (Trig = P1, Echo = P2) ครั้งเดียว ไม่กรองค่า
+     * รอคลื่นสะท้อนแค่ถึงระยะ maxCm เท่านั้น จึงไม่ทำให้ลูปเดินตามเส้นสะดุดนาน
+     * คืน 0 ถ้าไม่มีอะไรอยู่ในระยะ
+     */
+    function pingCm(maxCm: number): number {
+        pins.setPull(DigitalPin.P1, PinPullMode.PullNone)
+        pins.digitalWritePin(DigitalPin.P1, 0)
+        control.waitMicros(2)
+        pins.digitalWritePin(DigitalPin.P1, 1)
+        control.waitMicros(10)
+        pins.digitalWritePin(DigitalPin.P1, 0)
+        return Math.idiv(pins.pulseIn(DigitalPin.P2, PulseValue.High, maxCm * 58), 58)
+    }
+
+    /**
+     * เดินตามเส้นไปเรื่อย ๆ จนเจอสิ่งกีดขวางใกล้กว่าระยะที่กำหนด แล้วเบรกหยุด
+     * ใช้อัลตราโซนิก Trig = P1, Echo = P2 (เหมือนบล็อก "ระยะทาง")
+     * วัดระยะทุก 40 ms และต้องเจอใกล้ 2 ครั้งติดกันถึงจะหยุด กันค่าหลอก
+     * ถ้าวิ่งเร็ว หุ่นจะไถลต่ออีกนิดหลังเบรก ให้เผื่อระยะไว้
+     * @param cm หยุดเมื่อเจอสิ่งกีดขวางใกล้กว่ากี่เซนติเมตร
+     * @param speed ความเร็ว 0-100
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=87
+    //% block="เดินตามเส้นไปจนเจอสิ่งกีดขวางใกล้กว่า $cm ซม. ความเร็ว $speed แล้วหยุด"
+    //% cm.min=3 cm.max=100 cm.defl=15
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% inlineInputMode=inline
+    export function lineToObstacle(cm: number, speed: number): void {
+        kidsLineReady()
+        speed = kidsClamp(speed, 0, 100)
+        cm = kidsClamp(cm, 3, 100)
+        resetPID()
+        let nextPing = 0
+        let hits = 0
+        while (!kidsHalted) {
+            let mark = input.runningTime()
+            Follower(speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
+            if (mark >= nextPing) {
+                nextPing = mark + 40
+                let d = pingCm(cm + 10)
+                hits = (d > 0 && d < cm) ? hits + 1 : 0
+                if (hits >= 2) break
+            }
+            pidWait(mark)
+        }
+        if (!kidsHalted && speed > 0) {
+            // เบรกด้วยการกลับทางมอเตอร์ช่วงสั้น ๆ แบบเดียวกับตอนหยุดที่ทางแยก
+            motorGo(-100, -100, -100, -100)
+            basic.pause(20)
+        }
+        motorStop()
+    }
+
+    /**
      * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุดหรือเลี้ยวต่อทันที
      * @param count จำนวนทางแยกที่จะนับ
      * @param speed ความเร็วตอนเดินตามเส้น
