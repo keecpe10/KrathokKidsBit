@@ -182,6 +182,37 @@ namespace KrathokKidsBit {
         return deg
     }
 
+    // ================= เริ่มและรอ =================
+
+    /**
+     * รอจนกดแล้วปล่อย เลือกได้ทั้งปุ่ม A B A+B และการสัมผัสโลโก้
+     *
+     * มีเสียงปี๊บก่อนแสดงไอคอนทั้งสองจังหวะ ตอนเริ่มรอและตอนกดแล้ว
+     * ใช้เป็นจุดเริ่มของโปรแกรม จะได้วางหุ่นบนเส้นให้เรียบร้อยก่อนค่อยกดเริ่ม
+     * กดค้างไว้ก็ไม่ข้ามไปยังบล็อก "รอกด" ตัวถัดไป
+     * @param btn ปุ่มหรือการสัมผัสที่จะรอ
+     * @param waiting ไอคอนระหว่างรอ
+     * @param done ไอคอนหลังกดแล้ว
+     */
+    //% group="เริ่มและรอ"
+    //% weight=95
+    //% block="รอกด $btn||ระหว่างรอแสดง $waiting กดแล้วแสดง $done"
+    //% expandableArgumentMode="toggle"
+    //% waiting.fieldEditor="imagedropdown" waiting.fieldOptions.columns="5"
+    //% done.fieldEditor="imagedropdown" done.fieldOptions.columns="5"
+    //% inlineInputMode=inline
+    export function waitForButton(btn: Kids_Button, waiting: IconNames = IconNames.Happy, done: IconNames = IconNames.SmallHeart): void {
+        // เสียงต่ำ = เริ่มรอ วาดไอคอนครั้งเดียวแล้วค่อยวนเช็คถี่ ๆ
+        // ถ้าวาดซ้ำในลูป basic.showIcon จะหน่วงรอบละ 600 ms การกดสั้น ๆ จะหลุดได้
+        music.playTone(659, music.beat(BeatFraction.Quarter))
+        basic.showIcon(waiting, 0)
+        kidsWaitDown(btn)
+        // เสียงสูงและเปลี่ยนไอคอนทันทีที่กด ไม่ต้องรอปล่อย จะได้รู้สึกว่าตอบสนองทันที
+        music.playTone(988, music.beat(BeatFraction.Quarter))
+        basic.showIcon(done, 0)
+        kidsWaitUp(btn)
+    }
+
     // ================= เคลื่อนที่ =================
 
     /**

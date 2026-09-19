@@ -147,6 +147,17 @@ enum ADC_Read {
     ADC7 = 0xF4
 }
 
+enum Kids_Button {
+    //% block="A"
+    A,
+    //% block="B"
+    B,
+    //% block="A+B"
+    AB,
+    //% block="สัมผัสโลโก้"
+    Logo
+}
+
 enum Forward_Direction {
     //% block="Forward"
     Forward,
@@ -207,17 +218,52 @@ enum Angle {
 }
 
 //% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
-//% groups='["เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "จูน PID", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
+//% groups='["เริ่มและรอ", "เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "จูน PID", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
 //% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
     /**
      * รอจนกดปุ่ม A แล้วปล่อย ป้องกันการกดค้างข้ามไปยังขั้นตอนถัดไป
      */
     export function waitButton(btn: Button): void {
-        // ถ้าปุ่มยังค้างจากขั้นก่อนหน้า รอให้ปล่อยก่อน แล้วค่อยรอกดใหม่
+        waitButtonDown(btn)
+        waitButtonUp(btn)
+    }
+
+    /**
+     * รอจนมีการกดปุ่มครั้งใหม่
+     * ถ้าปุ่มยังค้างจากขั้นก่อนหน้า จะรอให้ปล่อยก่อนแล้วค่อยนับว่าเป็นการกดใหม่
+     */
+    export function waitButtonDown(btn: Button): void {
         while (input.buttonIsPressed(btn)) basic.pause(20)
         while (!input.buttonIsPressed(btn)) basic.pause(20)
+    }
+
+    /** รอจนปล่อยปุ่ม กันไม่ให้การกดค้างข้ามไปยังขั้นตอนถัดไป */
+    export function waitButtonUp(btn: Button): void {
         while (input.buttonIsPressed(btn)) basic.pause(20)
+        basic.pause(100)
+    }
+
+    /**
+     * กำลังกดอยู่ไหม รองรับทั้งปุ่ม A B A+B และการสัมผัสโลโก้
+     * สัมผัสโลโก้มีเฉพาะ micro:bit V2 บน V1 จะได้ false เสมอ
+     */
+    export function kidsButtonPressed(btn: Kids_Button): boolean {
+        if (btn == Kids_Button.Logo) return input.logoIsPressed()
+        if (btn == Kids_Button.B) return input.buttonIsPressed(Button.B)
+        if (btn == Kids_Button.AB) return input.buttonIsPressed(Button.AB)
+        return input.buttonIsPressed(Button.A)
+    }
+
+    /** รอจนมีการกดครั้งใหม่ ถ้ายังกดค้างอยู่จะรอให้ปล่อยก่อน */
+    export function kidsWaitDown(btn: Kids_Button): void {
+        while (kidsButtonPressed(btn)) basic.pause(20)
+        while (!kidsButtonPressed(btn)) basic.pause(20)
+    }
+
+    /** รอจนปล่อย กันไม่ให้การกดค้างข้ามไปยังขั้นตอนถัดไป */
+    export function kidsWaitUp(btn: Kids_Button): void {
+        while (kidsButtonPressed(btn)) basic.pause(20)
         basic.pause(100)
     }
 
