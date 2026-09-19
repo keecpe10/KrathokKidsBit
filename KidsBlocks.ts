@@ -71,6 +71,24 @@ enum Kids_ArmAction {
     PlaceAndRelease
 }
 
+enum Kids_Motor {
+    //% block="1"
+    M1 = 1,
+    //% block="2"
+    M2 = 2,
+    //% block="3"
+    M3 = 3,
+    //% block="4"
+    M4 = 4
+}
+
+enum Kids_MotorDir {
+    //% block="ไปหน้า"
+    Forward,
+    //% block="ถอยหลัง"
+    Backward
+}
+
 enum Kids_Servo {
     //% block="1"
     S0,
@@ -306,6 +324,43 @@ namespace KrathokKidsBit {
         let heading = anglesRead(Angle.Yaw)
         let d = dir == Kids_Direction.Forward ? Forward_Direction.Forward : Forward_Direction.Backward
         goWithDegreesTime(d, Math.max(0, seconds) * 1000, heading, kidsClamp(speed, 0, 100), 100, 2, 1)
+    }
+
+    // ================= มอเตอร์ =================
+
+    /**
+     * สั่งมอเตอร์ทีละตัว มอเตอร์ 1-2 คือล้อซ้าย มอเตอร์ 3-4 คือล้อขวา
+     * ถ้าใส่เวลา (กด ⊕) จะหมุนตามเวลาแล้วหยุดเฉพาะมอเตอร์ตัวนี้
+     * ถ้าไม่ใส่เวลา จะหมุนไปเรื่อยๆ จนกว่าจะสั่งหยุด
+     * @param motor มอเตอร์ช่อง 1-4
+     * @param dir ทิศที่หมุน
+     * @param speed ความเร็ว 0-100
+     * @param seconds เวลาเป็นวินาที 0 = หมุนไปเรื่อยๆ
+     */
+    //% group="มอเตอร์"
+    //% weight=94
+    //% block="มอเตอร์ $motor หมุน $dir ความเร็ว $speed||นาน $seconds วินาที"
+    //% expandableArgumentMode="toggle"
+    //% speed.min=0 speed.max=100 speed.defl=50
+    //% seconds.min=0 seconds.defl=1
+    //% inlineInputMode=inline
+    export function motorRun(motor: Kids_Motor, dir: Kids_MotorDir, speed: number, seconds: number = 0): void {
+        speed = kidsClamp(speed, 0, 100)
+        motorWriteChannel(motor, dir == Kids_MotorDir.Forward ? speed : -speed)
+        if (seconds > 0) {
+            basic.pause(seconds * 1000)
+            motorWriteChannel(motor, 0)
+        }
+    }
+
+    /**
+     * หยุดมอเตอร์ตัวเดียว ตัวอื่นยังหมุนต่อ (หยุดทุกตัวใช้ "หุ่นยนต์หยุด")
+     */
+    //% group="มอเตอร์"
+    //% weight=93
+    //% block="มอเตอร์ $motor หยุด"
+    export function motorOff(motor: Kids_Motor): void {
+        motorWriteChannel(motor, 0)
     }
 
     // ================= เดินตามเส้น =================

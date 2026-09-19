@@ -176,7 +176,7 @@ enum Angle {
 }
 
 //% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
-//% groups='["เริ่มและหยุด", "เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ"]'
+//% groups='["เริ่มและหยุด", "เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "มอเตอร์", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ"]'
 //% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
     /**
@@ -746,74 +746,36 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * สั่งมอเตอร์ช่องเดียว ch 1-4, speed -100 ถึง 100 (ค่าลบ = หมุนกลับทาง)
+     * ช่อง 1-2 คือล้อซ้าย ช่อง 3-4 คือล้อขวา
+     */
+    export function motorWriteChannel(ch: number, speed: number): void {
+        // หลังสั่งหยุดทำงานทั้งหมด บังคับเป็น 0 แทนการ return
+        // เพื่อให้ขามอเตอร์ถูกขับให้หยุดจริง ไม่ใช่ค้างค่าเดิมไว้
+        if (kidsHalted) speed = 0
+        let pca = 13
+        let pin = AnalogPin.P14
+        if (ch == 2) { pca = 12; pin = AnalogPin.P13 }
+        else if (ch == 3) { pca = 14; pin = AnalogPin.P16 }
+        else if (ch == 4) { pca = 15; pin = AnalogPin.P15 }
+        else if (ch != 1) return
+        let duty = pins.map(speed, -100, 100, -1023, 1023)
+        if (duty < -1023) duty = -1023
+        else if (duty > 1023) duty = 1023
+        // PCA กำหนดทิศ ส่วนขา micro:bit กำหนดความเร็วด้วย PWM
+        analogWritePCA(pca, duty < 0 ? 0 : 4095)
+        pins.analogWritePin(pin, duty < 0 ? -duty : duty)
+        pins.analogSetPeriod(pin, 50)
+    }
+
+    /**
      * Control motors speed both at the same time. The speed motors is adjustable between -100 to 100.
      */
     export function motorGo(speed1: number, speed2: number, speed3: number, speed4: number): void {
-        // หลังสั่งหยุดทำงานทั้งหมด บังคับเป็น 0 แทนการ return
-        // เพื่อให้ขามอเตอร์ถูกขับให้หยุดจริง ไม่ใช่ค้างค่าเดิมไว้
-        if (kidsHalted) {
-            speed1 = 0
-            speed2 = 0
-            speed3 = 0
-            speed4 = 0
-        }
-        speed1 = pins.map(speed1, -100, 100, -1023, 1023)
-        speed2 = pins.map(speed2, -100, 100, -1023, 1023)
-        speed3 = pins.map(speed3, -100, 100, -1023, 1023)
-        speed4 = pins.map(speed4, -100, 100, -1023, 1023)
-
-        if (speed1 < -1023) speed1 = -1023
-        else if (speed1 > 1023) speed1 = 1023
-        if (speed2 < -1023) speed2 = -1023
-        else if (speed2 > 1023) speed2 = 1023
-        if (speed3 < -1023) speed3 = -1023
-        else if (speed3 > 1023) speed3 = 1023
-        if (speed4 < -1023) speed4 = -1023
-        else if (speed4 > 1023) speed4 = 1023
-
-        if (speed1 < 0) {
-            analogWritePCA(13, 0)
-            pins.analogWritePin(AnalogPin.P14, -speed1)
-            pins.analogSetPeriod(AnalogPin.P14, 50)
-        }
-        else if (speed1 >= 0) {
-            analogWritePCA(13, 4095)
-            pins.analogWritePin(AnalogPin.P14, speed1)
-            pins.analogSetPeriod(AnalogPin.P14, 50)
-        }
-
-        if (speed2 < 0) {
-            analogWritePCA(12, 0)
-            pins.analogWritePin(AnalogPin.P13, -speed2)
-            pins.analogSetPeriod(AnalogPin.P13, 50)
-        }
-        else if (speed2 >= 0) {
-            analogWritePCA(12, 4095)
-            pins.analogWritePin(AnalogPin.P13, speed2)
-            pins.analogSetPeriod(AnalogPin.P13, 50)
-        }
-
-        if (speed3 < 0) {
-            analogWritePCA(14, 0)
-            pins.analogWritePin(AnalogPin.P16, -speed3)
-            pins.analogSetPeriod(AnalogPin.P16, 50)
-        }
-        else if (speed3 >= 0) {
-            analogWritePCA(14, 4095)
-            pins.analogWritePin(AnalogPin.P16, speed3)
-            pins.analogSetPeriod(AnalogPin.P16, 50)
-        }
-
-        if (speed4 < 0) {
-            analogWritePCA(15, 0)
-            pins.analogWritePin(AnalogPin.P15, -speed4)
-            pins.analogSetPeriod(AnalogPin.P15, 50)
-        }
-        else if (speed4 >= 0) {
-            analogWritePCA(15, 4095)
-            pins.analogWritePin(AnalogPin.P15, speed4)
-            pins.analogSetPeriod(AnalogPin.P15, 50)
-        }
+        motorWriteChannel(1, speed1)
+        motorWriteChannel(2, speed2)
+        motorWriteChannel(3, speed3)
+        motorWriteChannel(4, speed4)
     }
 
     /**
