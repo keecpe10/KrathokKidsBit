@@ -260,6 +260,37 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * คิดความเร็วล้อซ้าย-ขวาจากความเร็วฐานกับค่า PD โดย "รักษาผลต่างซ้าย-ขวา" ไว้
+     *
+     * วิธีเดิมตัดเฉพาะล้อที่เกินเพดาน ผลต่างจึงหดตามไปด้วย
+     * พอสั่งความเร็วเท่าเพดาน (เช่น 100) ล้อนอกจะถูกตรึงไว้ตลอด
+     * เหลือแค่เบรกล้อในอย่างเดียว แรงเลี้ยวจึงเหลือครึ่งเดียวของความเร็วอื่น
+     *
+     * วิธีนี้เลื่อนความเร็ว "ทั้งคู่" ลงเท่า ๆ กันแทนการตัดข้างเดียว
+     * ผลต่างที่ PID สั่งจึงอยู่ครบ แรงเลี้ยวเท่ากันทุกความเร็ว
+     * และตอนวิ่งตรง (PD = 0) ยังได้ความเร็วเต็มตามที่สั่ง
+     *
+     * เขียนผลลงตัวแปร left_motor_speed / right_motor_speed
+     * @param base ความเร็วฐาน
+     * @param pd ค่า PD ที่จะบวกให้ล้อขวา ลบออกจากล้อซ้าย
+     * @param top เพดานความเร็วของแต่ละล้อ
+     */
+    function steerPair(base: number, pd: number, top: number): void {
+        let l = base - pd
+        let r = base + pd
+        let over = Math.max(l, r) - top
+        if (over > 0) {
+            l -= over
+            r -= over
+        }
+        // ผลต่างเกิน 2 เท่าของเพดานคือทำตามไม่ไหวจริง ๆ ตัดที่ผลต่างมากสุดเท่าที่ได้
+        if (l < -top) l = -top
+        if (r < -top) r = -top
+        left_motor_speed = l
+        right_motor_speed = r
+    }
+
+    /**
      * แปลงหมายเลขช่อง 0-7 เป็นคำสั่งอ่านของ ADS7828
      */
     export function adcCmd(ch: number): number {
@@ -642,22 +673,7 @@ namespace KrathokKidsBit {
             PD_Value = (kp * P) + (kd * D)
             previous_error = error
 
-            left_motor_speed = min_speed + PD_Value
-            right_motor_speed = min_speed - PD_Value
-
-            if (left_motor_speed > max_speed) {
-                left_motor_speed = max_speed
-            }
-            else if (left_motor_speed < -max_speed) {
-                left_motor_speed = -max_speed
-            }
-
-            if (right_motor_speed > max_speed) {
-                right_motor_speed = max_speed
-            }
-            else if (right_motor_speed < -max_speed) {
-                right_motor_speed = -max_speed
-            }
+            steerPair(min_speed, -PD_Value, max_speed)
 
             if (direction == Forward_Direction.Forward) {
                 motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
@@ -695,22 +711,7 @@ namespace KrathokKidsBit {
         PD_Value = (kp * P) + (kd * D)
         previous_error = error
 
-        left_motor_speed = min_speed + PD_Value
-        right_motor_speed = min_speed - PD_Value
-
-        if (left_motor_speed > max_speed) {
-            left_motor_speed = max_speed
-        }
-        else if (left_motor_speed < -max_speed) {
-            left_motor_speed = -max_speed
-        }
-
-        if (right_motor_speed > max_speed) {
-            right_motor_speed = max_speed
-        }
-        else if (right_motor_speed < -max_speed) {
-            right_motor_speed = -max_speed
-        }
+        steerPair(min_speed, -PD_Value, max_speed)
 
         if (direction == Forward_Direction.Forward) {
             motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
@@ -1279,22 +1280,7 @@ namespace KrathokKidsBit {
             PD_Value = (kp * P) + (kd * D)
             previous_error = error
 
-            left_motor_speed = min_speed - PD_Value
-            right_motor_speed = min_speed + PD_Value
-
-            if (left_motor_speed > max_speed) {
-                left_motor_speed = max_speed
-            }
-            else if (left_motor_speed < -max_speed) {
-                left_motor_speed = -max_speed
-            }
-
-            if (right_motor_speed > max_speed) {
-                right_motor_speed = max_speed
-            }
-            else if (right_motor_speed < -max_speed) {
-                right_motor_speed = -max_speed
-            }
+            steerPair(min_speed, PD_Value, max_speed)
 
             if (direction == Forward_Direction.Forward) {
                 motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
@@ -1406,28 +1392,7 @@ namespace KrathokKidsBit {
             PD_Value = (kp * P) + (kd * D)
             previous_error = error
 
-            if (direction == Forward_Direction.Forward) {
-                left_motor_speed = min_speed - PD_Value
-                right_motor_speed = min_speed + PD_Value
-            }
-            else {
-                left_motor_speed = min_speed + PD_Value
-                right_motor_speed = min_speed - PD_Value
-            }
-
-            if (left_motor_speed > max_speed) {
-                left_motor_speed = max_speed
-            }
-            else if (left_motor_speed < -max_speed) {
-                left_motor_speed = -max_speed
-            }
-
-            if (right_motor_speed > max_speed) {
-                right_motor_speed = max_speed
-            }
-            else if (right_motor_speed < -max_speed) {
-                right_motor_speed = -max_speed
-            }
+            steerPair(min_speed, direction == Forward_Direction.Forward ? PD_Value : -PD_Value, max_speed)
 
             if (direction == Forward_Direction.Forward) {
                 if (last_center > 0) {
@@ -1586,23 +1551,7 @@ namespace KrathokKidsBit {
         PD_Value = (kp * P) + (kd * D)
         previous_error = error
 
-        left_motor_speed = min_speed - PD_Value
-        right_motor_speed = min_speed + PD_Value
-
-        if (left_motor_speed > max_speed) {
-            left_motor_speed = max_speed
-        }
-        else if (left_motor_speed < -max_speed) {
-            left_motor_speed = -max_speed
-        }
-
-        if (right_motor_speed > max_speed) {
-            right_motor_speed = max_speed
-        }
-        else if (right_motor_speed < -max_speed) {
-            right_motor_speed = -max_speed
-        }
-
+        steerPair(min_speed, PD_Value, max_speed)
         motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
     }
 
