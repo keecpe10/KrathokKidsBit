@@ -427,7 +427,7 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * เลี้ยวที่ทางแยก หมุนตัวจนเซ็นเซอร์ตรงกลางเจอเส้นใหม่
+     * เลี้ยวที่ทางแยก หมุนตัวเร็วแล้วค่อยๆ ช้าลง หยุดเมื่อเซ็นเซอร์ตรงกลางคร่อมเส้นใหม่พอดี
      */
     //% group="สั่งเดินตามเส้น"
     //% subcategory="เดินตามเส้น"
@@ -436,12 +436,10 @@ namespace KrathokKidsBit {
     //% speed.min=0 speed.max=100 speed.defl=50
     export function lineTurn(dir: Kids_LeftRight, speed: number): void {
         kidsLineReady()
-        let half = Math.max(1, Math.idiv(Num_Sensor, 2))
-        if (dir == Kids_LeftRight.Left) {
-            TurnLINE(Turn_Line.Left, kidsClamp(speed, 0, 100), half, 200, 20)
-        } else {
-            TurnLINE(Turn_Line.Right, kidsClamp(speed, 0, 100), Math.min(Num_Sensor, half + 1), 200, 20)
-        }
+        speed = kidsClamp(speed, 0, 100)
+        let slow = Math.max(20, Math.round(speed * 0.4))
+        let turn = dir == Kids_LeftRight.Left ? Turn_Line.Left : Turn_Line.Right
+        TurnLINEPro(turn, speed, slow, Math.round(speed * 0.4))
     }
 
     /**

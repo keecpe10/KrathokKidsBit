@@ -213,6 +213,20 @@ KrathokKidsBit.TurnLINE(
 )
 ```
 
+### TurnLINE Pro Block
+
+Turn Left or Right until the center sensors are exactly on the new line. Faster and more accurate than TurnLINE:
+sweeps fast, slows down as the line reaches the center, stops on the line position (not a single sensor), reverse-brakes and fine-corrects. Stops by itself after 4 seconds if no line is found.
+The Thai block `เลี้ยว ซ้าย/ขวา จนเจอเส้น` uses this block.
+
+* Fast Speed is the sweep speed between `0` to `100`
+* Slow Speed is the speed when the line is almost at the center (raise it if the robot stalls)
+* Brake Time is the reverse-brake time in ms (raise it if the robot overshoots the line, `0` = no brake)
+
+```blocks
+KrathokKidsBit.TurnLINEPro(Turn_Line.Left, 80, 30, 30)
+```
+
 ## Supported targets
 
 * for PXT/microbit
@@ -263,7 +277,7 @@ KrathokKidsBit=github:keecpe10/KrathokKidsBit
 | Ultrasonic | distanceRead |
 | ADC | ADCRead |
 | Line Setup | LINESensorSET · Line Sensor LED · Line Mode · ValueSensorSET · SensorCalibrate · PrintSensorValue · GETPosition |
-| Line Follow PID | Follower · ForwardTIME · ForwardLINE · ForwardLINECount · TurnLINE |
+| Line Follow PID | Follower · ForwardTIME · ForwardLINE · ForwardLINECount · TurnLINE · TurnLINE Pro |
 
 ตัวอย่าง: หุ่นยนต์หลบสิ่งกีดขวาง
 

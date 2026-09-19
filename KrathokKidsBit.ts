@@ -1372,6 +1372,130 @@ namespace KrathokKidsBit {
         }
     }
 
+    // ---------- เลี้ยวหาเส้นแบบเร็วและแม่นยำ (TurnLINEPro) ----------
+
+    // ค่าเซ็นเซอร์กลางตัวที่ i เป็น 0-1000 (1000 = อยู่บนเส้น)
+    function lineValue(i: number): number {
+        let raw = ADCRead(adcCmd(Sensor_PIN[i]))
+        let v = Line_Mode == 0
+            ? pins.map(raw, Color_Line[i], Color_Background[i], 1000, 0)
+            : pins.map(raw, Color_Background[i], Color_Line[i], 1000, 0)
+        return Math.max(0, Math.min(1000, v))
+    }
+
+    // ค่าเซ็นเซอร์ทางแยกตัวแรก (ซ้ายหรือขวา) 0-1000, คืน 0 ถ้าไม่ได้ตั้งค่าไว้
+    function sideValue(left: boolean): number {
+        let pin = left ? Sensor_Left : Sensor_Right
+        let line = left ? Color_Line_Left : Color_Line_Right
+        let ground = left ? Color_Background_Left : Color_Background_Right
+        if (pin.length == 0 || line.length == 0 || ground.length == 0) return 0
+        let raw = ADCRead(adcCmd(pin[0]))
+        let v = Line_Mode == 0
+            ? pins.map(raw, line[0], ground[0], 1000, 0)
+            : pins.map(raw, ground[0], line[0], 1000, 0)
+        return Math.max(0, Math.min(1000, v))
+    }
+
+    // ตำแหน่งเส้นใต้เซ็นเซอร์กลาง 0 (ซ้ายสุด) ถึง (Num_Sensor-1)*1000 (ขวาสุด), -1 = ไม่เจอเส้น
+    // ต่างจาก positionFrom ตรงที่ไม่เดาตำแหน่งตอนหลุดเส้น และไม่กลับทิศ
+    function centerPosition(): number {
+        let sum = 0
+        let weighted = 0
+        for (let i = 0; i < Num_Sensor; i++) {
+            let v = lineValue(i)
+            if (v > Sensor_On_Threshold) {
+                weighted += v * i * 1000
+                sum += v
+            }
+        }
+        if (sum == 0) return -1
+        return weighted / sum
+    }
+
+    // หมุนตัวอยู่กับที่ ค่าบวก = หมุนไปทาง turn, ค่าลบ = หมุนกลับทาง
+    function spinToward(turn: Turn_Line, speed: number): void {
+        if (turn == Turn_Line.Left) motorGo(-speed, -speed, speed, speed)
+        else motorGo(speed, speed, -speed, -speed)
+    }
+
+    /**
+     * Turn Left or Right until the center sensors are exactly on the new line.
+     * Fast sweep, slow approach, active brake and fine correction.
+     * Gives up and stops after 4 seconds if no line is found.
+     */
+    //% group="Line Follow PID"
+    //% advanced=true
+    //% weight=85
+    //% block="TurnLINE Pro %turn|Fast Speed\n %fast_speed|Slow Speed\n %slow_speed|Brake Time %brake_time"
+    //% fast_speed.min=0 fast_speed.max=100 fast_speed.defl=80
+    //% slow_speed.min=0 slow_speed.max=100 slow_speed.defl=30
+    //% brake_time.shadow="timePicker" brake_time.defl=30
+    export function TurnLINEPro(turn: Turn_Line, fast_speed: number, slow_speed: number, brake_time: number): void {
+        if (Num_Sensor == 0 || kidsHalted) return
+        let fast = Math.max(0, Math.min(100, fast_speed))
+        let slow = Math.max(0, Math.min(fast, slow_speed))
+        // ช่วงเข้าเส้นมีระยะแค่ราว 1.5 ช่องเซ็นเซอร์ เริ่มที่ fast จะเบรกไม่ทัน
+        let approach = (fast + slow) / 2
+        let left = turn == Turn_Line.Left
+        let center = (Num_Sensor - 1) * 500
+        let lead = left ? 0 : Num_Sensor - 1
+        let start = control.millis()
+        let timeout = 4000
+
+        // 1) หนีเส้นเดิม: หมุนเร็วจนเซ็นเซอร์กลางทุกตัวพ้นเส้น 2 รอบติดกัน
+        spinToward(turn, fast)
+        let clear = 0
+        while (clear < 2) {
+            if (kidsHalted || control.millis() - start > timeout) { motorStop(); return }
+            let on = false
+            for (let i = 0; i < Num_Sensor; i++) {
+                if (lineValue(i) >= 300) { on = true; break }
+            }
+            clear = on ? 0 : clear + 1
+        }
+
+        // 2) กวาดเร็ว: อ่านเฉพาะเซ็นเซอร์ทางแยกกับเซ็นเซอร์กลางตัวนอกสุดฝั่งที่หันไป
+        //    เซ็นเซอร์ทางแยกจะนับก็ต่อเมื่อเคยพ้นเส้นมาก่อน (กันเส้นเดิมหลอก)
+        let side_armed = false
+        while (true) {
+            if (kidsHalted || control.millis() - start > timeout) { motorStop(); return }
+            let side = sideValue(left)
+            if (side < 300) side_armed = true
+            if ((side_armed && side >= 500) || lineValue(lead) >= 500) break
+        }
+
+        // 3) เข้าเส้นช้า: ยิ่งเส้นใกล้กลางยิ่งช้า หยุดเมื่อถึงหรือเลยกลาง
+        spinToward(turn, approach)
+        while (true) {
+            if (kidsHalted || control.millis() - start > timeout) { motorStop(); return }
+            let pos = centerPosition()
+            if (pos < 0) {
+                spinToward(turn, slow)
+                continue
+            }
+            let remain = left ? center - pos : pos - center
+            if (remain <= 0) break
+            spinToward(turn, slow + (approach - slow) * remain / center)
+        }
+
+        // 4) เบรก: กลับทางเต็มแรงช่วงสั้นๆ
+        if (brake_time > 0) {
+            spinToward(turn, -100)
+            basic.pause(brake_time)
+        }
+        motorStop()
+
+        // 5) แก้ตำแหน่ง: ถ้ายังเยื้องกลางเกิน 250 ขยับช้าๆ เข้าหาเส้น ไม่เกิน 150 ms
+        let fix_start = control.millis()
+        while (!kidsHalted && control.millis() - fix_start < 150) {
+            let pos = centerPosition()
+            if (pos < 0 || Math.abs(pos - center) <= 250) break
+            // เส้นอยู่ทางซ้ายของกลาง → หมุนซ้ายจะเลื่อนเส้นมาทางขวา
+            spinToward(Turn_Line.Left, pos < center ? slow : -slow)
+        }
+        motorStop()
+    }
+
     /**
      * Line Follower Forward Timer
      */

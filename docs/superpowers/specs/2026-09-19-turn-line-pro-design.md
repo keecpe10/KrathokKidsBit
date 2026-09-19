@@ -13,19 +13,21 @@
 ## ส่วนประกอบ (KrathokKidsBit.ts)
 1. `lineValue(i)` (ภายใน) — ค่าเซ็นเซอร์กลางตัวที่ i เป็น 0–1000 (1000 = บนเส้น) รองรับ `Line_Mode`, บีบค่าให้อยู่ 0–1000
 2. `sideValue(left)` (ภายใน) — ค่าเซ็นเซอร์ข้างตัวแรกของ `Sensor_Left`/`Sensor_Right` 0–1000 (คืน 0 ถ้าไม่ได้ตั้งค่า)
-3. `centerPosition()` (ภายใน) — ถ่วงน้ำหนักเฉพาะเซ็นเซอร์ที่ค่า > 200, คืน -1 ถ้าไม่เจอเส้น
-4. บล็อก `TurnLINEPro(turn, fast_speed, slow_speed, brake_time)` group "Line Follower" advanced
+3. `centerPosition()` (ภายใน) — ถ่วงน้ำหนักเฉพาะเซ็นเซอร์ที่ค่า > `Sensor_On_Threshold`, คืน -1 ถ้าไม่เจอเส้น
+   (ทุกฟังก์ชันอ่าน ADC ผ่าน `adcCmd(ch)`)
+4. บล็อก `TurnLINEPro(turn, fast_speed, slow_speed, brake_time)` group "Line Follow PID" advanced weight 85
    ค่าเริ่มต้น fast 80, slow 30, brake 30 ms
 
 ## อัลกอริทึม TurnLINEPro
-ทิศหมุน: ซ้าย = `motorGo(-s,-s,s,s)`, ขวา = `motorGo(s,s,-s,-s)`; จับเวลารวม ถ้าเกิน 4000 ms → `motorStop()` แล้วจบ
+ทิศหมุน: ซ้าย = `motorGo(-s,-s,s,s)`, ขวา = `motorGo(s,s,-s,-s)`; จับเวลารวม ถ้าเกิน 4000 ms หรือ `kidsHalted` → `motorStop()` แล้วจบ
 1. **หนีเส้นเดิม**: หมุน fast จนเซ็นเซอร์กลางทุกตัว < 300 ติดกัน 2 รอบ
 2. **กวาดเร็ว**: หมุน fast; อ่านเฉพาะเซ็นเซอร์ข้างฝั่งที่หัน + เซ็นเซอร์กลางตัวนอกสุดฝั่งที่หัน; ตัวใดตัวหนึ่ง ≥ 500 → ไปข้อ 3
 3. **เข้าเส้นช้า**: อ่าน `centerPosition()`
    - ระยะเหลือ `remain` = C − pos (หมุนซ้าย) หรือ pos − C (หมุนขวา)
    - `remain <= 0` (ถึง/เลยกลาง) → เบรก
    - ไม่เจอเส้น → หมุน slow
-   - อื่นๆ → ความเร็ว = slow + (fast − slow) × remain / C (บีบให้อยู่ระหว่าง slow ถึง fast)
+   - อื่นๆ → ความเร็ว = slow + (approach − slow) × remain / C โดย approach = (fast + slow) / 2
+     (ใช้ approach แทน fast เพราะช่วงเข้าเส้นมีระยะแค่ ~1.5 ช่องเซ็นเซอร์ ถ้าใช้ fast จะเบรกไม่ทัน)
 4. **เบรก**: ถ้า brake_time > 0 หมุนกลับทาง 100% นาน brake_time ms แล้ว `motorStop()`
 5. **แก้ตำแหน่ง**: ถ้าเจอเส้นและ |pos − C| > 250 → ขยับด้วย slow ไปทางเส้น จนเข้าช่วง ±250 หรือครบ 150 ms แล้ว `motorStop()`
 
