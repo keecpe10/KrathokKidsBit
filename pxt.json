@@ -1,6 +1,6 @@
 {
     "name": "KrathokKidsBit",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "description": "บล็อกภาษาไทยสำหรับหุ่นยนต์ KidsBIT และจอ OLED 1.3 นิ้ว สำหรับนักเรียน ป.4-ป.6",
     "license": "MIT",
     "dependencies": {
