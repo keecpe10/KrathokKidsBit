@@ -32,6 +32,9 @@ let error = 0
 let P = 0
 let D = 0
 let previous_error = 0
+let D_Smooth = 0            // ค่า D หลังกรอง ใช้จริงในการคิด PD
+let D_Filter = 50           // 0 = ไม่กรอง (เหมือนเดิม) ยิ่งมากยิ่งกรองหนัก
+let Sensor_On_Threshold = 200   // ต่ำกว่านี้ถือว่าเซ็นเซอร์ตัวนั้นไม่เห็นเส้น
 let PD_Value = 0
 let left_motor_speed = 0
 let right_motor_speed = 0
@@ -262,6 +265,41 @@ namespace KrathokKidsBit {
         return out
     }
 
+    // คาบคงที่ของลูปเดินตามเส้น ใช้ร่วมกันทั้งตอนจูนและตอนวิ่งจริง
+    // D = ผลต่างต่อหนึ่งรอบ ไม่ได้หารด้วยเวลา คาบจึงต้องเท่ากันค่า KD ถึงจะใช้ข้ามบล็อกได้
+    export const PID_PERIOD = 10
+
+    /** ล้างสถานะ PID ก่อนเริ่มเดินตามเส้นรอบใหม่ */
+    export function resetPID(): void {
+        previous_error = 0
+        D_Smooth = 0
+    }
+
+    /**
+     * คิดค่า PD หนึ่งจังหวะจากตำแหน่งเส้นล่าสุด
+     *
+     * ตำแหน่งเส้นกระโดดเป็นขั้นทุกครั้งที่เซ็นเซอร์ตัวหนึ่งเข้าหรือออกจากเกณฑ์
+     * ระหว่างขั้นค่าจะนิ่งสนิทแล้วกระโดดทีเดียวหลายร้อยหน่วย
+     * D ดิบจึงเป็นศูนย์สลับกับหนามสูง ทำให้หักเลี้ยวกระตุกตอนเข้าโค้ง
+     * กรองแบบ low-pass ให้หนามเตี้ยลงแต่ยังเห็นแนวโน้มเดิม
+     */
+    function pidStep(kp: number, kd: number): void {
+        error = GETPosition() - (((Num_Sensor - 1) * 1000) / 2)
+        P = error
+        D = error - previous_error
+        previous_error = error
+        let amount = Math.max(0, Math.min(95, D_Filter))
+        let k = (100 - amount) / 100
+        D_Smooth = D_Smooth + (D - D_Smooth) * k
+        PD_Value = (kp * P) + (kd * D_Smooth)
+    }
+
+    /** หน่วงให้ครบคาบ นับจากเวลาที่เริ่มรอบ คาบจึงคงที่ไม่ว่าอ่านเซ็นเซอร์ช้าเร็วแค่ไหน */
+    export function pidWait(mark: number): void {
+        let used = input.runningTime() - mark
+        basic.pause(Math.max(1, PID_PERIOD - used))
+    }
+
     /**
      * คิดความเร็วล้อซ้าย-ขวาจากความเร็วฐานกับค่า PD โดย "รักษาผลต่างซ้าย-ขวา" ไว้
      *
@@ -347,7 +385,7 @@ namespace KrathokKidsBit {
             else Value_Sensor = pins.map(raw[i], Color_Background[i], Color_Line[i], 1000, 0)
             if (Value_Sensor < 0) Value_Sensor = 0
             else if (Value_Sensor > 1000) Value_Sensor = 1000
-            if (Value_Sensor > 200) {
+            if (Value_Sensor > Sensor_On_Threshold) {
                 ON_Line = 1
                 Average += Value_Sensor * (i * 1000)
                 Sum_Value += Value_Sensor
@@ -1301,14 +1339,10 @@ namespace KrathokKidsBit {
     //% time.defl=200
     export function ForwardTIME(direction: Forward_Direction, time: number, min_speed: number, max_speed: number, kp: number, kd: number) {
         let timer = control.millis()
-        previous_error = 0
+        resetPID()
         while (control.millis() - timer < time) {
-            error = GETPosition() - (((Num_Sensor - 1) * 1000) / 2)
-            P = error
-            D = error - previous_error
-            PD_Value = (kp * P) + (kd * D)
-            previous_error = error
-
+            let mark = input.runningTime()
+            pidStep(kp, kd)
             steerPair(min_speed, PD_Value, max_speed)
 
             if (direction == Forward_Direction.Forward) {
@@ -1317,6 +1351,7 @@ namespace KrathokKidsBit {
             else {
                 motorGo(-left_motor_speed, -left_motor_speed, -right_motor_speed, -right_motor_speed)
             }
+            pidWait(mark)
         }
         motorStop()
     }
@@ -1374,7 +1409,7 @@ namespace KrathokKidsBit {
         let line_state = 0
         let on_line = 0
         let on_line_LR = 0
-        previous_error = 0
+        resetPID()
 
         while (1) {
             if (kidsHalted) break
@@ -1415,11 +1450,7 @@ namespace KrathokKidsBit {
                 }
             }
 
-            error = GETPosition() - (((Num_Sensor - 1) * 1000) / 2)
-            P = error
-            D = error - previous_error
-            PD_Value = (kp * P) + (kd * D)
-            previous_error = error
+            pidStep(kp, kd)
 
             steerPair(min_speed, direction == Forward_Direction.Forward ? PD_Value : -PD_Value, max_speed)
 
@@ -1574,12 +1605,7 @@ namespace KrathokKidsBit {
     //% min_speed.min=0 min_speed.max=100
     //% max_speed.min=0 max_speed.max=100
     export function Follower(min_speed: number, max_speed: number, kp: number, kd: number) {
-        error = GETPosition() - (((Num_Sensor - 1) * 1000) / 2)
-        P = error
-        D = error - previous_error
-        PD_Value = (kp * P) + (kd * D)
-        previous_error = error
-
+        pidStep(kp, kd)
         steerPair(min_speed, PD_Value, max_speed)
         motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
     }
