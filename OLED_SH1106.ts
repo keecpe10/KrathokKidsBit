@@ -757,6 +757,77 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
         return out
     }
 
+    /** ลองคุยกับอุปกรณ์ I2C ที่อยู่นี้ ตอบ true ถ้ามีตัวตอบรับ */
+    function i2cPresent(addr: number): boolean {
+        // เขียน 1 ไบต์เป็นการตั้งตัวชี้รีจิสเตอร์เฉย ๆ ไม่เปลี่ยนค่าในชิป
+        // i2cWriteBuffer คืน 0 เมื่อมีตัวตอบรับ คืนค่าอื่นเมื่อไม่มีใครตอบ
+        let probe = pins.createBuffer(1)
+        probe[0] = 0
+        return pins.i2cWriteBuffer(addr, probe, false) == 0
+    }
+
+    function oledHex2(v: number): string {
+        let d = "0123456789ABCDEF"
+        return d.charAt((v >> 4) & 0xF) + d.charAt(v & 0xF)
+    }
+
+    /**
+     * ตรวจว่าฮาร์ดแวร์บนหุ่นตรงกับที่ส่วนขยายนี้คาดไว้ไหม
+     * ไล่หาอุปกรณ์ I2C แล้วอ่านค่าดิบครบทั้ง 8 ช่อง ADC
+     * แสดงบนจอ OLED และส่งออกทางสาย USB พร้อมกัน จึงดูได้แม้ไม่มีจอ
+     */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=56
+    //% block="จอ OLED ตรวจสอบฮาร์ดแวร์"
+    export function oledHardwareCheck(): void {
+        // ADS7828 ตั้งที่อยู่ได้ 0x48-0x4B ด้วยขา A0/A1 จึงไล่หาให้ครบ
+        let adcAt = -1
+        for (let a = 0x48; a <= 0x4B; a++) {
+            if (i2cPresent(a)) {
+                adcAt = a
+                break
+            }
+        }
+        let motorAt = i2cPresent(PCA) ? PCA : -1
+        let oledAt = -1
+        if (i2cPresent(0x3C)) oledAt = 0x3C
+        else if (i2cPresent(0x3D)) oledAt = 0x3D
+
+        let rows: string[] = []
+        let adcRow = "ADC   "
+        if (adcAt < 0) adcRow += "NOT FOUND"
+        else if (adcAt == ADS7828_ADDR) adcRow += "0x" + oledHex2(adcAt) + " OK"
+        // เจอ ADC แต่คนละที่อยู่กับที่โค้ดใช้อยู่ ค่าที่อ่านได้จะไม่ถูกต้อง
+        else adcRow += "0x" + oledHex2(adcAt) + " NOT 0x" + oledHex2(ADS7828_ADDR)
+        rows.push(adcRow)
+        rows.push("MOTOR " + (motorAt < 0 ? "NOT FOUND" : "0x" + oledHex2(motorAt) + " OK"))
+        rows.push("OLED  " + (oledAt < 0 ? "NOT FOUND" : "0x" + oledHex2(oledAt) + " OK"))
+
+        // อ่านค่าดิบครบทั้ง 8 ช่อง ไม่สนว่าตั้งค่าเซ็นเซอร์ไว้กี่ช่อง
+        // ช่องที่ไม่ได้ต่ออะไรจะนิ่งอยู่สุดปลายด้านใดด้านหนึ่ง
+        for (let ch = 0; ch < 8; ch += 2) {
+            let a = adcAt < 0 ? "----" : "" + ADCRead(adcCmd(ch))
+            let b = adcAt < 0 ? "----" : "" + ADCRead(adcCmd(ch + 1))
+            rows.push(ch + ":" + oledPadLeft(a, 4) + "  " + (ch + 1) + ":" + oledPadLeft(b, 4))
+        }
+
+        for (let i = 0; i < rows.length; i++) serial.writeLine(rows[i])
+
+        if (!oledIsReady()) {
+            // ไม่มีจอก็ยังดูผลทางสาย USB ได้ บอกด้วยไอคอนว่าตรวจเสร็จแล้ว
+            basic.showIcon(IconNames.Yes, 500)
+            basic.clearScreen()
+            return
+        }
+        oledBuf.fill(0)
+        oledDirty = 0xFF
+        for (let i = 0; i < rows.length && i < 8; i++) {
+            oledText(rows[i], 0, i * 8, 1, OLED_Color.White)
+        }
+        oledUpdate()
+    }
+
     /**
      * แสดงค่าคาลิเบรตที่เก็บไว้ของทุกช่อง ทั้งค่าบนเส้นและค่าบนพื้น
      * ใช้ตรวจว่าค่าที่สอนหรือใส่ไว้ตรงกับที่เซ็นเซอร์อ่านได้จริงไหม
