@@ -4,19 +4,6 @@
  * Wiring: VCC -> 3V3, GND -> GND, SCL -> P19 (SCL), SDA -> P20 (SDA)
  */
 
-enum OLED_SensorView {
-    //% block="ค่าเซ็นเซอร์เส้น"
-    Values,
-    //% block="กราฟแท่งเซ็นเซอร์เส้น"
-    Bars,
-    //% block="ค่าเซ็นเซอร์รายช่อง"
-    Channels,
-    //% block="ค่าคาลิเบรต"
-    Calibration,
-    //% block="ตรวจสอบฮาร์ดแวร์"
-    Hardware
-}
-
 enum OLED_Address {
     //% block="0x3C"
     Addr_0x3C = 0x3C,
@@ -579,27 +566,13 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * แสดงข้อมูลเซ็นเซอร์บนจอ เลือกแบบที่ต้องการ
-     * ค่าเซ็นเซอร์เส้น / กราฟแท่ง / รายช่อง ใส่ไว้ใน "วนซ้ำตลอดไป" เพื่อดูค่าสด
+     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
+     * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
      */
     //% group="เซ็นเซอร์บนจอ"
     //% subcategory="จอ OLED"
     //% weight=60
-    //% block="จอ OLED แสดง %view"
-    export function oledShowSensor(view: OLED_SensorView): void {
-        switch (view) {
-            case OLED_SensorView.Values: oledLineSensorValues(); break
-            case OLED_SensorView.Bars: oledLineSensorBars(); break
-            case OLED_SensorView.Channels: oledLineSensorChannels(); break
-            case OLED_SensorView.Calibration: oledShowCalibration(); break
-            case OLED_SensorView.Hardware: oledHardwareCheck(); break
-        }
-    }
-
-    /**
-     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
-     * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
-     */
+    //% block="จอ OLED แสดงค่าเซ็นเซอร์เส้น"
     export function oledLineSensorValues(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -660,6 +633,10 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * แสดงค่าเซ็นเซอร์พร้อมหมายเลขช่อง เช่น CH0 1200
      * ใช้จดค่าตอนอยู่บนเส้น (ดำ) และบนพื้น (ขาว) ไปใส่บล็อก "ตั้งค่าเซ็นเซอร์" เรียงตามหมายเลขช่อง
      */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=58
+    //% block="จอ OLED แสดงค่าเซ็นเซอร์รายช่อง"
     export function oledLineSensorChannels(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -728,6 +705,10 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * ไล่หาอุปกรณ์ I2C แล้วอ่านค่าดิบครบทั้ง 8 ช่อง ADC
      * แสดงบนจอ OLED และส่งออกทางสาย USB พร้อมกัน จึงดูได้แม้ไม่มีจอ
      */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=56
+    //% block="จอ OLED ตรวจสอบฮาร์ดแวร์"
     export function oledHardwareCheck(): void {
         // บอร์ดรุ่นใหม่ใช้ ADC ที่ 0x49 คืนค่า 8 บิต รุ่นเดิมใช้ ADS7828 ที่ 0x48 คืน 12 บิต
         // ไล่ต่อถึง 0x4B ด้วย เพราะ ADS7828 ตั้งที่อยู่ได้ด้วยขา A0/A1
@@ -789,6 +770,10 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * ใช้ตรวจว่าค่าที่สอนหรือใส่ไว้ตรงกับที่เซ็นเซอร์อ่านได้จริงไหม
      * ช่องที่ยังไม่ได้ตั้งค่าจะขึ้นขีด
      */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=57
+    //% block="จอ OLED แสดงค่าคาลิเบรต"
     export function oledShowCalibration(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -824,6 +809,10 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นกราฟแท่ง เรียงตามตำแหน่งจริงซ้าย -> ขวา
      * แท่งยิ่งสูง = ยิ่งเห็นเส้นชัด แถบทึบใต้แท่ง = เซ็นเซอร์ตัวนั้นอยู่บนเส้น
      */
+    //% group="เซ็นเซอร์บนจอ"
+    //% subcategory="จอ OLED"
+    //% weight=59
+    //% block="จอ OLED กราฟแท่งเซ็นเซอร์เส้น"
     export function oledLineSensorBars(): void {
         oledCheck()
         oledBuf.fill(0)
