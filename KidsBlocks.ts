@@ -304,6 +304,27 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * สอนเซ็นเซอร์แบบลาก: กดปุ่ม A แล้วลากหุ่นกลับไปกลับมาข้ามเส้นจนกว่าจะมีเสียง 2 ครั้ง
+     * หุ่นอ่านค่าตลอดเวลาที่ลาก หาค่าเฉลี่ยของตอนอยู่บนเส้นกับบนพื้นให้เอง
+     * ไฟกลางติดและมีเสียงคลิกทุกครั้งที่ข้ามเส้น เสร็จแล้วแสดงค่าที่ได้บนจอ OLED ทันที
+     * @param seconds เวลาที่ใช้ลาก หน่วยวินาที
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=88
+    //% block="สอนเซ็นเซอร์แบบลากผ่านเส้น $seconds วินาที (กดปุ่ม A)"
+    //% seconds.min=3 seconds.max=30 seconds.defl=8
+    export function lineCalibrateSweep(seconds: number): void {
+        if (Sensor_PIN.length == 0) lineSetupStandard()
+        let all: number[] = []
+        for (let p of Sensor_PIN) all.push(p)
+        for (let p of Sensor_Left) if (all.indexOf(p) < 0) all.push(p)
+        for (let p of Sensor_Right) if (all.indexOf(p) < 0) all.push(p)
+        SensorCalibrateSweep(all, seconds)
+        kidsLineWarned = false
+    }
+
+    /**
      * เดินตามเส้น 1 จังหวะ (ใส่ไว้ในบล็อก "วนซ้ำตลอดไป")
      */
     //% group="สั่งเดินตามเส้น"
