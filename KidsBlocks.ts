@@ -1080,6 +1080,9 @@ namespace KrathokKidsBit {
         }
     }
 
+    // มุมล่าสุดที่สั่งเซอร์โวแต่ละช่อง -1 = ยังไม่เคยสั่ง (เซอร์โวบอกตำแหน่งตัวเองไม่ได้)
+    let servoLast = [-1, -1, -1, -1, -1, -1, -1, -1]
+
     /**
      * หมุนเซอร์โวไปที่มุม 0-180 องศา
      */
@@ -1089,6 +1092,45 @@ namespace KrathokKidsBit {
     //% block="เซอร์โวช่อง $servo หมุนไปที่ $degrees องศา"
     //% degrees.shadow="protractorPicker" degrees.defl=90
     export function kidsServo(servo: Kids_Servo, degrees: number): void {
-        servoWrite(<number>servo, kidsClamp(degrees, 0, 180))
+        if (kidsHalted) return
+        degrees = kidsClamp(degrees, 0, 180)
+        servoWrite(<number>servo, degrees)
+        servoLast[servo] = degrees
     }
+
+    /**
+     * ค่อยๆ หมุนเซอร์โวจากมุมเดิมไปมุมใหม่ ภายในเวลาที่กำหนด
+     * ออกตัวช้า เร็วตรงกลาง แล้วช้าลงก่อนถึง ของที่คีบอยู่จึงไม่สะบัด
+     * ครั้งแรกหลังเปิดเครื่องยังไม่รู้ว่าเซอร์โวอยู่มุมไหน จะหมุนไปทันที
+     * จึงควรตั้งมุมเริ่มต้นด้วยบล็อก "เซอร์โวช่อง _ หมุนไปที่" ไว้ตอนเริ่มโปรแกรม
+     * @param servo ช่องเซอร์โว
+     * @param degrees มุมปลายทาง 0-180
+     * @param seconds เวลาที่ใช้หมุน หน่วยวินาที
+     */
+    //% group="เซอร์โว"
+    //% subcategory="เซอร์โว"
+    //% weight=69
+    //% block="เซอร์โวช่อง $servo ค่อยๆ หมุนไปที่ $degrees องศา ใช้เวลา $seconds วินาที"
+    //% degrees.shadow="protractorPicker" degrees.defl=90
+    //% seconds.min=0 seconds.max=10 seconds.defl=1
+    //% inlineInputMode=inline
+    export function kidsServoSmooth(servo: Kids_Servo, degrees: number, seconds: number): void {
+        degrees = kidsClamp(degrees, 0, 180)
+        let from = servoLast[servo]
+        if (from < 0 || seconds <= 0) {
+            kidsServo(servo, degrees)
+            return
+        }
+        // เซอร์โวรับสัญญาณรอบละ 20 ms อัปเดตถี่กว่านี้ก็ไม่ได้ผล
+        let steps = Math.max(1, Math.round(seconds * 1000 / 20))
+        for (let i = 1; i <= steps; i++) {
+            if (kidsHalted) return
+            let t = i / steps
+            // smoothstep: ความเร็วเป็น 0 ที่ต้นและปลาย
+            let e = t * t * (3 - 2 * t)
+            kidsServo(servo, from + (degrees - from) * e)
+            basic.pause(20)
+        }
+    }
+
 }
