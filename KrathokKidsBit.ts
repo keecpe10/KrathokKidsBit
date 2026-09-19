@@ -1127,37 +1127,44 @@ namespace KrathokKidsBit {
 
         found_left = 0
         found_right = 0
+        // PID ทำงานเป็นคาบคงที่ PID_PERIOD เท่ากับตอนจูนและบล็อกเดินตามเส้นอื่น
+        // ค่า KD ที่จูนได้จึงใช้ได้ตรง ส่วนเซ็นเซอร์ทางแยกยังอ่านทุกรอบเร็วเท่าเดิม
+        // จึงไม่พลาดเส้นทางแยกตอนวิ่งเร็ว
+        let pid_mark = input.runningTime() - PID_PERIOD
 
         while (1) {
             if (kidsHalted) break
-            for (let i = 0; i < Sensor_PIN.length; i++) {
-                if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)) >= 200) {
-                    last_center += 1
+            if (input.runningTime() - pid_mark >= PID_PERIOD) {
+                pid_mark = input.runningTime()
+                for (let i = 0; i < Sensor_PIN.length; i++) {
+                    if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)) >= 200) {
+                        last_center += 1
+                    }
                 }
-            }
 
-            pidStep(kp, kd)
+                pidStep(kp, kd)
 
-            steerPair(min_speed, direction == Forward_Direction.Forward ? PD_Value : -PD_Value, max_speed)
+                steerPair(min_speed, direction == Forward_Direction.Forward ? PD_Value : -PD_Value, max_speed)
 
-            if (direction == Forward_Direction.Forward) {
-                if (last_center > 0) {
-                    motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
+                if (direction == Forward_Direction.Forward) {
+                    if (last_center > 0) {
+                        motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
+                    }
+                    else {
+                        motorGo(min_speed, min_speed, min_speed, min_speed)
+                    }
                 }
                 else {
-                    motorGo(min_speed, min_speed, min_speed, min_speed)
+                    if (last_center > 0) {
+                        motorGo(-left_motor_speed, -left_motor_speed, -right_motor_speed, -right_motor_speed)
+                    }
+                    else {
+                        motorGo(-min_speed, -min_speed, -min_speed, -min_speed)
+                    }
                 }
-            }
-            else {
-                if (last_center > 0) {
-                    motorGo(-left_motor_speed, -left_motor_speed, -right_motor_speed, -right_motor_speed)
-                }
-                else {
-                    motorGo(-min_speed, -min_speed, -min_speed, -min_speed)
-                }
-            }
 
-            last_center = 0
+                last_center = 0
+            }
 
             for (let i = 0; i < Sensor_Left.length; i++) {
                 if ((pins.map(ADCRead(ADC_PIN[Sensor_Left[i]]), Color_Line_Left[i], Color_Background_Left[i], 1000, 0)) >= 500) {
