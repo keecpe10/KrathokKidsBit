@@ -1722,6 +1722,196 @@ namespace KrathokKidsBit {
         Line_Mode = mode
     }
 
+    // ---------- คาลิเบรตแบบลากหุ่นผ่านเส้น ----------
+    // เก็บเฉพาะสถิติระหว่างลาก (ต่ำสุด สูงสุด ผลรวม จำนวน) ไม่เก็บตัวอย่างทุกตัวไว้
+    // จึงใช้แรมคงที่ ไม่ว่าจะลากนานแค่ไหน
+    const CAL_SWEEP_STEP = 10        // เวลาต่อหนึ่งรอบอ่าน (ms)
+    const CAL_SWEEP_EDGE = 25        // นับเป็น "ปลายสุด" เมื่ออยู่ใน % นี้ของช่วง
+    const CAL_SWEEP_MIN_RANGE = 150  // ต่างกันน้อยกว่านี้ถือว่าเซ็นเซอร์ไม่เคยผ่านเส้น
+
+    let calSweepBar = -1
+
+    /** แถบความคืบหน้าแถวล่างสุดของจอ LED วาดเพิ่มทีละดวง ไม่วาดซ้ำทุกรอบ */
+    function calSweepProgress(elapsed: number, total: number): void {
+        let seg = Math.idiv(elapsed * 5, total)
+        if (seg > 4) seg = 4
+        while (calSweepBar < seg) {
+            calSweepBar++
+            led.plot(calSweepBar, 4)
+        }
+    }
+
+    /**
+     * สอนเซ็นเซอร์ด้วยการลากหุ่นกลับไปกลับมาข้ามเส้น
+     * อ่านค่าตลอดเวลาที่ลาก แล้วหาค่าเฉลี่ยของ "ตอนอยู่บนเส้น" กับ "ตอนอยู่บนพื้น" ให้เอง
+     * @param seconds เวลาที่ใช้ลาก หน่วยวินาที
+     */
+    //% group="Line Setup"
+    //% advanced=true
+    //% weight=97
+    //% block="SensorCalibrate Sweep $adc_pin|seconds $seconds"
+    //% seconds.min=3 seconds.max=30 seconds.defl=8
+    export function SensorCalibrateSweep(adc_pin: number[], seconds: number): void {
+        let chs = validChannels(adc_pin)
+        let n = chs.length
+        if (n == 0) {
+            music.playTone(262, music.beat(BeatFraction.Half))
+            music.playTone(196, music.beat(BeatFraction.Half))
+            basic.showIcon(IconNames.No)
+            return
+        }
+        if (seconds < 3) seconds = 3
+        if (seconds > 30) seconds = 30
+
+        let cmd: number[] = []
+        let vmin: number[] = []
+        let vmax: number[] = []
+        let loSum: number[] = []
+        let loCnt: number[] = []
+        let hiSum: number[] = []
+        let hiCnt: number[] = []
+        let lastB: number[] = []     // -1 = ช่วงกลาง, 0 = ปลายต่ำ, 1 = ปลายสูง
+        for (let i = 0; i < n; i++) {
+            cmd.push(adcCmd(chs[i]))
+            vmin.push(4095)
+            vmax.push(0)
+            loSum.push(0)
+            loCnt.push(0)
+            hiSum.push(0)
+            hiCnt.push(0)
+            lastB.push(-1)
+        }
+
+        setLineLED(true)
+
+        // บอกให้ลากซ้าย-ขวาข้ามเส้น แล้วกดปุ่ม A เริ่ม
+        music.playTone(587, music.beat(BeatFraction.Quarter))
+        music.playTone(784, music.beat(BeatFraction.Quarter))
+        basic.showArrow(ArrowNames.West, 300)
+        basic.showArrow(ArrowNames.East, 300)
+        waitButtonA()
+        music.playTone(784, music.beat(BeatFraction.Quarter))
+        basic.clearScreen()
+        calSweepBar = -1
+
+        // ช่วงที่ 1 - หาช่วงค่าต่ำสุด/สูงสุดของแต่ละช่อง
+        let total = seconds * 1000
+        let half = Math.idiv(total, 2)
+        let t0 = input.runningTime()
+        while (input.runningTime() - t0 < half) {
+            if (kidsHalted) return
+            for (let i = 0; i < n; i++) {
+                let v = ADCRead(cmd[i])
+                if (v < vmin[i]) vmin[i] = v
+                if (v > vmax[i]) vmax[i] = v
+            }
+            calSweepProgress(input.runningTime() - t0, total)
+            basic.pause(CAL_SWEEP_STEP)
+        }
+
+        // รู้ช่วงแล้ว กำหนดเส้นแบ่ง "ปลายสุด" ของแต่ละช่อง
+        // ค่าที่ตกอยู่ตรงกลางคือช่วงกำลังข้ามขอบเส้น ทิ้งไปไม่เอามาเฉลี่ย
+        let loTh: number[] = []
+        let hiTh: number[] = []
+        for (let i = 0; i < n; i++) {
+            let edge = Math.idiv((vmax[i] - vmin[i]) * CAL_SWEEP_EDGE, 100)
+            loTh.push(vmin[i] + edge)
+            hiTh.push(vmax[i] - edge)
+        }
+        music.playTone(659, music.beat(BeatFraction.Quarter))
+
+        // ช่วงที่ 2 - เก็บค่าเฉลี่ยของทั้งสองปลาย ระหว่างที่ยังลากต่อ
+        let blink = false
+        while (input.runningTime() - t0 < total) {
+            if (kidsHalted) return
+            let crossed = false
+            for (let i = 0; i < n; i++) {
+                let v = ADCRead(cmd[i])
+                if (v < vmin[i]) vmin[i] = v
+                if (v > vmax[i]) vmax[i] = v
+                let b = -1
+                if (v <= loTh[i]) {
+                    loSum[i] += v
+                    loCnt[i]++
+                    b = 0
+                }
+                else if (v >= hiTh[i]) {
+                    hiSum[i] += v
+                    hiCnt[i]++
+                    b = 1
+                }
+                if (b >= 0) {
+                    if (lastB[i] >= 0 && lastB[i] != b) crossed = true
+                    lastB[i] = b
+                }
+            }
+            // ไฟกลางติดและมีเสียงคลิก ทุกครั้งที่มีเซ็นเซอร์ข้ามเส้น
+            // ผู้ใช้จะรู้ได้ทันทีว่าลากแล้วหุ่นเห็นเส้นจริงหรือเปล่า
+            if (crossed != blink) {
+                blink = crossed
+                if (blink) led.plot(2, 1)
+                else led.unplot(2, 1)
+            }
+            if (crossed) music.playTone(1568, 15)
+            calSweepProgress(input.runningTime() - t0, total)
+            basic.pause(CAL_SWEEP_STEP)
+        }
+        led.unplot(2, 1)
+
+        // เซ็นเซอร์ทุกตัวเป็นชนิดเดียวกัน ปลายที่เป็น "พื้น" จึงต้องเป็นด้านเดียวกันทั้งชุด
+        // เส้นแคบกว่าพื้นมาก ตัวอย่างส่วนใหญ่จึงเป็นพื้น ใช้เสียงข้างมากทั้งชุดตัดสิน
+        // แบบนี้ช่องเดียวที่อ่านเพี้ยนจะพลิกขั้วของทั้งชุดไม่ได้
+        let loAll = 0
+        let hiAll = 0
+        for (let i = 0; i < n; i++) {
+            loAll += loCnt[i]
+            hiAll += hiCnt[i]
+        }
+        let groundIsLow = loAll >= hiAll
+
+        let failed: number[] = []
+        for (let i = 0; i < n; i++) {
+            let ch = chs[i]
+            // ไม่ผ่านเมื่อช่วงแคบเกิน (ไม่เคยผ่านเส้น) หรือเก็บได้ไม่ครบทั้งสองปลาย
+            // (หยุดลากไปก่อนช่วงที่ 2 จบ) ช่องที่ไม่ผ่านจะคงค่าเดิมไว้ ไม่เขียนทับของดี
+            if (vmax[i] - vmin[i] < CAL_SWEEP_MIN_RANGE || loCnt[i] == 0 || hiCnt[i] == 0) {
+                failed.push(ch)
+                continue
+            }
+            let loAvg = Math.round(loSum[i] / loCnt[i])
+            let hiAvg = Math.round(hiSum[i] / hiCnt[i])
+            if (groundIsLow) {
+                Cal_Bg_Ch[ch] = loAvg
+                Cal_Line_Ch[ch] = hiAvg
+            }
+            else {
+                Cal_Bg_Ch[ch] = hiAvg
+                Cal_Line_Ch[ch] = loAvg
+            }
+            Cal_Has_Ch[ch] = true
+        }
+        applyCal()
+
+        if (failed.length == 0) {
+            music.playTone(784, music.beat(BeatFraction.Quarter))
+            music.playTone(988, music.beat(BeatFraction.Quarter))
+            basic.showIcon(IconNames.Yes, 500)
+        }
+        else {
+            music.playTone(262, music.beat(BeatFraction.Half))
+            music.playTone(196, music.beat(BeatFraction.Half))
+            basic.showIcon(IconNames.No, 500)
+            // บอกเลขช่องที่ไม่ผ่าน จะได้ลากใหม่ให้ครอบคลุมตัวที่พลาด
+            let msg = "FAIL"
+            for (let i = 0; i < failed.length; i++) msg += " " + failed[i]
+            basic.showString(msg)
+        }
+        basic.clearScreen()
+
+        // แสดงค่าที่อ่านได้ทันทีหลังสอนเสร็จ
+        if (oledIsReady()) oledShowCalibration()
+    }
+
     /**
      * Calibrate Sensor
      */
