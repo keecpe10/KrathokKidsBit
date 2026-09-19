@@ -339,6 +339,32 @@ namespace KrathokKidsBit {
     }
 
     /**
+     * เดินตามเส้นไปเรื่อย ๆ โดยคุมจังหวะเอง ไม่ต้องใส่ใน "วนซ้ำตลอดไป"
+     *
+     * ลูปของ "วนซ้ำตลอดไป" นอนรอบละ 20 ms บวกเวลาทำงานอีก จึงได้ราว 25 ms
+     * และไม่คงที่ตามสิ่งอื่นที่วางไว้ในลูปเดียวกัน บล็อกนี้คุมคาบเองให้คงที่
+     * และเร็วกว่า หุ่นจึงแก้ทิศได้ถี่ขึ้น นิ่งขึ้น และเข้าโค้งเนียนขึ้น
+     *
+     * บล็อกนี้ไม่คืนการทำงาน จะหยุดเมื่อสั่งหยุดทั้งหมดหรือกดรีเซท
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=88
+    //% block="เดินตามเส้นตลอดไป ความเร็ว $speed"
+    //% speed.min=0 speed.max=100 speed.defl=40
+    export function lineFollowForever(speed: number): void {
+        kidsLineReady()
+        speed = kidsClamp(speed, 0, 100)
+        resetPID()
+        while (true) {
+            if (kidsHalted) break
+            let mark = input.runningTime()
+            Follower(speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
+            pidWait(mark)
+        }
+    }
+
+    /**
      * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุด
      */
     //% group="สั่งเดินตามเส้น"
@@ -445,7 +471,6 @@ namespace KrathokKidsBit {
 
     // คาบของลูปจูน ตั้งให้เท่ากับ basic.forever เพื่อให้ค่า KD ที่ได้ใช้กับ
     // "ตลอดไป + เดินตามเส้น" ได้ตรง ๆ  ถ้าเปลี่ยนคาบลูป ต้องจูน KD ใหม่
-    const KIDS_TUNE_PERIOD = 20
     let kidsTuneSeconds = 4
 
     function fmt2(v: number): string {
@@ -498,7 +523,7 @@ namespace KrathokKidsBit {
      * คืน [ส่ายเฉลี่ย, ส่ายมากสุด] หน่วยเดียวกับค่าตำแหน่งเส้น ยิ่งน้อยยิ่งดี
      */
     function tuneScore(kp: number, kd: number, speed: number, ms: number): number[] {
-        previous_error = 0
+        resetPID()
         let sum = 0
         let count = 0
         let worst = 0
@@ -510,9 +535,8 @@ namespace KrathokKidsBit {
             sum += e
             if (e > worst) worst = e
             count += 1
-            // คุมคาบให้คงที่ ไม่ใช่หน่วงคงที่ เวลาที่ใช้อ่านเซ็นเซอร์จึงไม่ทำให้คาบเพี้ยน
-            let used = input.runningTime() - mark
-            basic.pause(Math.max(1, KIDS_TUNE_PERIOD - used))
+            // คาบเดียวกับตอนวิ่งจริง ค่าที่จูนได้จึงเอาไปใช้ได้ตรง ๆ
+            pidWait(mark)
         }
         motorStop()
         if (count == 0) return [0, 0]
@@ -919,6 +943,41 @@ namespace KrathokKidsBit {
     export function lineTuningBand(band: Kids_Band, kp: number, kd: number): void {
         kidsKPBand[band] = kp
         kidsKDBand[band] = kd
+    }
+
+    /**
+     * ความนุ่มของการหักเลี้ยว 0 = ไม่กรองเลย (ดิบเหมือนเดิม) ยิ่งมากยิ่งนุ่ม
+     *
+     * ตำแหน่งเส้นกระโดดเป็นขั้นเวลาเซ็นเซอร์เข้าหรือออกจากเกณฑ์
+     * ตัว D จึงเด้งเป็นหนาม ทำให้เข้าโค้งกระตุก ค่านี้คุมว่าจะปาดหนามลงแค่ไหน
+     * มากไปหุ่นจะตอบสนองช้าและเริ่มส่าย แนะนำ 40-70
+     * @param amount ความนุ่ม 0-95
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=86
+    //% block="ความนุ่มการหักเลี้ยว $amount"
+    //% amount.min=0 amount.max=95 amount.defl=50
+    export function lineSteerSmooth(amount: number): void {
+        D_Filter = kidsClamp(amount, 0, 95)
+    }
+
+    /**
+     * เกณฑ์ที่ถือว่าเซ็นเซอร์ตัวหนึ่ง "เห็นเส้น" แล้วเอามาคิดตำแหน่ง (0-1000)
+     *
+     * ค่าสูงจะนับเฉพาะตัวที่เห็นเส้นชัด ๆ ทำให้บางจังหวะเหลือตัวเดียว
+     * ตำแหน่งเส้นจะนิ่งสนิทแล้วกระโดดทีเดียว หุ่นเลยกระตุก
+     * ค่าต่ำจะนับตัวที่เห็นเส้นแค่ขอบ ๆ ด้วย ตำแหน่งจึงเปลี่ยนต่อเนื่องกว่า
+     * แต่ถ้าต่ำเกินไปจะไวต่อคราบสกปรกบนพื้น แนะนำ 80-200
+     * @param level เกณฑ์ 0-1000
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=85
+    //% block="เกณฑ์นับว่าเห็นเส้น $level"
+    //% level.min=10 level.max=900 level.defl=200
+    export function lineOnThreshold(level: number): void {
+        Sensor_On_Threshold = kidsClamp(level, 10, 900)
     }
 
     // ================= เซ็นเซอร์ =================
