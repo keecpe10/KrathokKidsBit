@@ -1,6 +1,5 @@
 /**
  * บล็อกภาษาไทยแบบง่าย สำหรับนักเรียน ป.4-ป.6
- * (บล็อกเดิมทั้งหมดยังใช้ได้ อยู่ในหมวด "เพิ่มเติม" ของ KrathokKidsBit)
  */
 
 enum Kids_Move {
@@ -41,6 +40,37 @@ enum Kids_Junction {
     Right
 }
 
+enum Kids_Then {
+    //% block="หยุด"
+    Stop,
+    //% block="เลี้ยวซ้าย"
+    TurnLeft,
+    //% block="เลี้ยวขวา"
+    TurnRight
+}
+
+enum Kids_CalMode {
+    //% block="ลากผ่านเส้น"
+    Sweep,
+    //% block="วางทีละจุด (กดปุ่ม A)"
+    Points
+}
+
+enum Kids_ArmAction {
+    //% block="อ้าก้าม"
+    OpenGrip,
+    //% block="หนีบ"
+    CloseGrip,
+    //% block="ยกแขน"
+    ArmUp,
+    //% block="ลดแขน"
+    ArmDown,
+    //% block="จับแล้วยก"
+    GripAndLift,
+    //% block="วางแล้วปล่อย"
+    PlaceAndRelease
+}
+
 enum Kids_Servo {
     //% block="1"
     S0,
@@ -60,34 +90,15 @@ enum Kids_Servo {
     S7
 }
 
-enum Kids_Grip {
-    //% block="เปิด"
-    Open,
-    //% block="หนีบ"
-    Close
-}
-
-enum Kids_Arm {
-    //% block="ยก"
-    Up,
-    //% block="ลง"
-    Down
-}
-
 enum Kids_Band {
+    //% block="ทุกช่วง"
+    All = 3,
     //% block="ช้า (0-40)"
     Slow = 0,
     //% block="กลาง (41-60)"
     Medium = 1,
     //% block="เร็ว (61-100)"
     Fast = 2
-}
-
-enum Kids_Gain {
-    //% block="KP"
-    KP,
-    //% block="KD"
-    KD
 }
 
 enum Kids_Sensor {
@@ -182,7 +193,7 @@ namespace KrathokKidsBit {
         return deg
     }
 
-    // ================= เริ่มและรอ =================
+    // ================= เริ่มและหยุด =================
 
     /**
      * รอจนกดแล้วปล่อย เลือกได้ทั้งปุ่ม A B A+B และการสัมผัสโลโก้
@@ -194,7 +205,7 @@ namespace KrathokKidsBit {
      * @param waiting ไอคอนระหว่างรอ
      * @param done ไอคอนหลังกดแล้ว
      */
-    //% group="เริ่มและรอ"
+    //% group="เริ่มและหยุด"
     //% weight=95
     //% block="รอกด $btn||ระหว่างรอแสดง $waiting กดแล้วแสดง $done"
     //% expandableArgumentMode="toggle"
@@ -216,14 +227,19 @@ namespace KrathokKidsBit {
     // ================= เคลื่อนที่ =================
 
     /**
-     * สั่งหุ่นยนต์เคลื่อนที่ไปเรื่อยๆ จนกว่าจะสั่งหยุด
+     * สั่งหุ่นยนต์เคลื่อนที่ ถ้าใส่เวลา (กด ⊕) จะเคลื่อนที่ตามเวลาแล้วหยุด
+     * ถ้าไม่ใส่เวลา จะเคลื่อนที่ไปเรื่อยๆ จนกว่าจะสั่งหยุด
      * @param speed ความเร็ว 0-100
+     * @param seconds เวลาเป็นวินาที 0 = ไปเรื่อยๆ
      */
     //% group="เคลื่อนที่พื้นฐาน"
     //% weight=100
-    //% block="หุ่นยนต์ $move ความเร็ว $speed"
+    //% block="หุ่นยนต์ $move ความเร็ว $speed||นาน $seconds วินาที"
+    //% expandableArgumentMode="toggle"
     //% speed.min=0 speed.max=100 speed.defl=50
-    export function robotMove(move: Kids_Move, speed: number): void {
+    //% seconds.min=0 seconds.defl=1
+    //% inlineInputMode=inline
+    export function robotMove(move: Kids_Move, speed: number, seconds: number = 0): void {
         speed = kidsClamp(speed, 0, 100)
         switch (move) {
             case Kids_Move.Forward: motorGo(speed, speed, speed, speed); break
@@ -233,20 +249,10 @@ namespace KrathokKidsBit {
             case Kids_Move.SpinLeft: Spin(_Spin.Left, speed); break
             case Kids_Move.SpinRight: Spin(_Spin.Right, speed); break
         }
-    }
-
-    /**
-     * สั่งหุ่นยนต์เคลื่อนที่ตามเวลา (วินาที) แล้วหยุด
-     */
-    //% group="เคลื่อนที่พื้นฐาน"
-    //% weight=99
-    //% block="หุ่นยนต์ $move ความเร็ว $speed นาน $seconds วินาที"
-    //% speed.min=0 speed.max=100 speed.defl=50
-    //% seconds.min=0 seconds.defl=1
-    export function robotMoveFor(move: Kids_Move, speed: number, seconds: number): void {
-        robotMove(move, speed)
-        basic.pause(Math.max(0, seconds) * 1000)
-        motorStop()
+        if (seconds > 0) {
+            basic.pause(seconds * 1000)
+            motorStop()
+        }
     }
 
     /**
@@ -307,66 +313,35 @@ namespace KrathokKidsBit {
     /**
      * ตั้งค่าเซ็นเซอร์เส้นแบบมาตรฐานของ PTKidsBIT Education Robot Kit
      * เซ็นเซอร์กลาง ช่อง 0-5 / ทางแยกซ้าย ช่อง 6 / ทางแยกขวา ช่อง 7
+     * บล็อกเดินตามเส้นทุกตัวเรียกให้เองอัตโนมัติ จึงไม่ต้องมีบล็อก
      */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=90
-    //% block="ตั้งค่าเซ็นเซอร์เส้น แบบมาตรฐาน"
     export function lineSetupStandard(): void {
         LINESensorSET([0, 1, 2, 3, 4, 5], [6], [7], LED_Pin.Disable)
     }
 
     /**
-     * สอนเซ็นเซอร์: เสียงปี๊บ → วางเซ็นเซอร์บนเส้น กดปุ่ม A → วางบนพื้น กดปุ่ม A → เสียงปี๊บ 2 ครั้ง = เสร็จ
+     * สอนเซ็นเซอร์ให้รู้จักเส้นและพื้น
+     * ลากผ่านเส้น: กดปุ่ม A แล้วลากหุ่นกลับไปกลับมาข้ามเส้นจนมีเสียง 2 ครั้ง
+     * วางทีละจุด: เสียงปี๊บ → วางบนเส้น กดปุ่ม A → วางบนพื้น กดปุ่ม A → เสียงปี๊บ 2 ครั้ง = เสร็จ
+     * @param mode วิธีสอน
+     * @param seconds เวลาที่ใช้ลาก (ใช้กับแบบลากผ่านเส้นเท่านั้น)
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
-    //% weight=89
-    //% block="สอนเซ็นเซอร์รู้จักเส้นและพื้น (กดปุ่ม A)"
-    export function lineCalibrate(): void {
-        if (Sensor_PIN.length == 0) lineSetupStandard()
-        let all: number[] = []
-        for (let p of Sensor_PIN) all.push(p)
-        for (let p of Sensor_Left) if (all.indexOf(p) < 0) all.push(p)
-        for (let p of Sensor_Right) if (all.indexOf(p) < 0) all.push(p)
-        // SensorCalibrate เขียนทับค่าเดิมให้เองแล้ว จึงสอนซ้ำได้หลายครั้ง
-        SensorCalibrate(all)
-        kidsLineWarned = false
-    }
-
-    /**
-     * สอนเซ็นเซอร์แบบลาก: กดปุ่ม A แล้วลากหุ่นกลับไปกลับมาข้ามเส้นจนกว่าจะมีเสียง 2 ครั้ง
-     * หุ่นอ่านค่าตลอดเวลาที่ลาก หาค่าเฉลี่ยของตอนอยู่บนเส้นกับบนพื้นให้เอง
-     * ไฟกลางติดและมีเสียงคลิกทุกครั้งที่ข้ามเส้น เสร็จแล้วแสดงค่าที่ได้บนจอ OLED ทันที
-     * @param seconds เวลาที่ใช้ลาก หน่วยวินาที
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=88
-    //% block="สอนเซ็นเซอร์แบบลากผ่านเส้น $seconds วินาที (กดปุ่ม A)"
+    //% weight=90
+    //% block="สอนเซ็นเซอร์ แบบ $mode||ลากนาน $seconds วินาที"
+    //% expandableArgumentMode="toggle"
     //% seconds.min=3 seconds.max=30 seconds.defl=8
-    export function lineCalibrateSweep(seconds: number): void {
+    export function lineCalibrate(mode: Kids_CalMode, seconds: number = 8): void {
         if (Sensor_PIN.length == 0) lineSetupStandard()
         let all: number[] = []
         for (let p of Sensor_PIN) all.push(p)
         for (let p of Sensor_Left) if (all.indexOf(p) < 0) all.push(p)
         for (let p of Sensor_Right) if (all.indexOf(p) < 0) all.push(p)
-        SensorCalibrateSweep(all, seconds)
+        // สอนซ้ำได้หลายครั้ง ค่าใหม่เขียนทับค่าเดิม
+        if (mode == Kids_CalMode.Sweep) SensorCalibrateSweep(all, seconds)
+        else SensorCalibrate(all)
         kidsLineWarned = false
-    }
-
-    /**
-     * เดินตามเส้น 1 จังหวะ (ใส่ไว้ในบล็อก "วนซ้ำตลอดไป")
-     */
-    //% group="สั่งเดินตามเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=87
-    //% block="เดินตามเส้น ความเร็ว $speed"
-    //% speed.min=0 speed.max=100 speed.defl=40
-    export function lineFollow(speed: number): void {
-        kidsLineReady()
-        speed = kidsClamp(speed, 0, 100)
-        Follower(speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
     }
 
     /**
@@ -396,19 +371,29 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุด
+     * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุดหรือเลี้ยวต่อทันที
+     * @param count จำนวนทางแยกที่จะนับ
+     * @param speed ความเร็วตอนเดินตามเส้น
+     * @param then ทำอะไรต่อเมื่อถึงทางแยก
+     * @param turnSpeed ความเร็วตอนเลี้ยว
      */
     //% group="สั่งเดินตามเส้น"
     //% subcategory="เดินตามเส้น"
     //% weight=85
-    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed"
+    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed แล้ว $then||ความเร็วเลี้ยว $turnSpeed"
+    //% expandableArgumentMode="toggle"
     //% count.min=1 count.defl=1
     //% speed.min=0 speed.max=100 speed.defl=40
-    export function lineToJunction(junction: Kids_Junction, count: number, speed: number): void {
+    //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
+    //% inlineInputMode=inline
+    export function lineToJunction(junction: Kids_Junction, count: number, speed: number, then: Kids_Then = Kids_Then.Stop, turnSpeed: number = 50): void {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         let find = junction == Kids_Junction.Left ? Find_Line.Left : (junction == Kids_Junction.Right ? Find_Line.Right : Find_Line.Center)
         ForwardLINECount(Forward_Direction.Forward, find, Math.max(1, Math.floor(count)), speed, Math.min(100, speed * 2), 20, kpFor(speed), kdFor(speed))
+        motorStop()
+        if (then == Kids_Then.TurnLeft) lineTurn(Kids_LeftRight.Left, turnSpeed)
+        else if (then == Kids_Then.TurnRight) lineTurn(Kids_LeftRight.Right, turnSpeed)
     }
 
     /**
@@ -440,53 +425,6 @@ namespace KrathokKidsBit {
         let slow = Math.max(20, Math.round(speed * 0.4))
         let turn = dir == Kids_LeftRight.Left ? Turn_Line.Left : Turn_Line.Right
         TurnLINEPro(turn, speed, slow, Math.round(speed * 0.4))
-    }
-
-    /**
-     * ส่งค่าเซ็นเซอร์เส้นออกทางสาย USB เพื่อดูใน "Show data" ของ MakeCode
-     * ใช้หาค่าตอนอยู่บนเส้น (ดำ) และตอนอยู่บนพื้น (ขาว) ก่อนเอาไปใส่บล็อก
-     * "ตั้งค่าเซ็นเซอร์ช่อง" ชื่อคอลัมน์คือหมายเลขช่อง เช่น ch0 จึงใส่ต่อได้ตรงๆ
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=82
-    //% block="ส่งค่าเซ็นเซอร์เส้นไปคอมพิวเตอร์"
-    export function lineSensorToSerial(): void {
-        // ไม่เรียก kidsLineReady() เพราะบล็อกนี้มีไว้ใช้ "ก่อน" สอนเซ็นเซอร์
-        // จึงไม่ควรเตือนว่ายังไม่ได้สอน
-        if (Num_Sensor == 0) lineSetupStandard()
-        for (let i = 0; i < Sensor_Left.length; i++) {
-            serial.writeValue("ch" + Sensor_Left[i], ADCRead(adcCmd(Sensor_Left[i])))
-        }
-        for (let i = 0; i < Sensor_PIN.length; i++) {
-            serial.writeValue("ch" + Sensor_PIN[i], ADCRead(adcCmd(Sensor_PIN[i])))
-        }
-        for (let i = 0; i < Sensor_Right.length; i++) {
-            serial.writeValue("ch" + Sensor_Right[i], ADCRead(adcCmd(Sensor_Right[i])))
-        }
-    }
-
-    /**
-     * ปกติให้เดินตามเส้นที่สอนไว้ ถ้าสอนสลับกัน (จำพื้นเป็นเส้น) ให้เลือก "สลับเส้นกับพื้น"
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=87
-    //% block="ใช้เส้นแบบ $mode"
-    export function lineModeSet(mode: Line_Follow_Mode): void {
-        SetLineMode(mode)
-    }
-
-    /**
-     * เปิดหรือปิดไฟ LED ของแผงเซ็นเซอร์เส้น
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=86
-    //% block="ไฟเซ็นเซอร์เส้น $on"
-    //% on.shadow="toggleOnOff"
-    export function lineLED(on: boolean): void {
-        LineSensorLED(on)
     }
 
     // ================= จูน PID =================
@@ -745,7 +683,7 @@ namespace KrathokKidsBit {
      * @param speed ความเร็วที่จะใช้จริง 0-100
      * @param rounds ไล่ซ้ำได้มากสุดกี่รอบต่อหนึ่งขั้น
      */
-    //% group="จูน PID"
+    //% group="สั่งเดินตามเส้น"
     //% subcategory="เดินตามเส้น"
     //% weight=80
     //% block="จูนอัตโนมัติ ความเร็ว $speed รอบสูงสุดต่อขั้น $rounds"
@@ -818,7 +756,7 @@ namespace KrathokKidsBit {
         serial.writeLine("band " + name + " (speed " + bandRange(band) + ")  KP " + kpText + "  KD " + kdText)
         // บรรทัดนี้ก๊อปไปวางในโหมด JavaScript ได้ทันที
         serial.writeLine(">>> COPY THIS LINE INTO YOUR PROGRAM:")
-        serial.writeLine("KrathokKidsBit.lineTuningBand(" + bandEnumName(band) + ", " + kpText + ", " + kdText + ")")
+        serial.writeLine("KrathokKidsBit.lineTuning(" + bandEnumName(band) + ", " + kpText + ", " + kdText + ")")
 
         music.playTone(784, music.beat(BeatFraction.Quarter))
         music.playTone(988, music.beat(BeatFraction.Quarter))
@@ -845,123 +783,12 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * ขั้นที่ 1: ไล่หาค่า KP โดยปิด KD
-     * ค่าที่ได้เป็นแค่ค่าตั้งต้น ต้องทำขั้นที่ 2 และ 3 ต่อเสมอ
-     * @param speed ความเร็วที่จะใช้จริง 0-100
-     * @param from ค่า KP ต่ำสุดที่จะลอง
-     * @param to ค่า KP สูงสุดที่จะลอง
-     */
-    //% group="จูน PID"
-    //% subcategory="เดินตามเส้น"
-    //% weight=79
-    //% block="จูน KP (ปิด KD) ความเร็ว $speed ตั้งแต่ $from ถึง $to"
-    //% speed.min=0 speed.max=100 speed.defl=40
-    //% from.defl=0.02 to.defl=0.20
-    //% inlineInputMode=inline
-    export function lineTuneKpNoKd(speed: number, from: number, to: number): void {
-        if (!tuneReady()) return
-        let band = bandOf(kidsClamp(speed, 0, 100))
-        let r = tuneSweep("KP", false, speed, from, to)
-        if (r[3] == 0) return
-        kidsKPBand[band] = r[0]
-        kidsKDBand[band] = 0
-    }
-
-    /**
-     * ขั้นที่ 2: ไล่หาค่า KD โดยใช้ค่า KP ที่ได้จากขั้นที่ 1
-     */
-    //% group="จูน PID"
-    //% subcategory="เดินตามเส้น"
-    //% weight=78
-    //% block="จูน KD ความเร็ว $speed ตั้งแต่ $from ถึง $to"
-    //% speed.min=0 speed.max=100 speed.defl=40
-    //% from.defl=0 to.defl=8
-    //% inlineInputMode=inline
-    export function lineTuneKd(speed: number, from: number, to: number): void {
-        if (!tuneReady()) return
-        let rkd = tuneSweep("KD", true, speed, from, to)
-        if (rkd[3] == 0) return
-        kidsKDBand[bandOf(kidsClamp(speed, 0, 100))] = rkd[0]
-    }
-
-    /**
-     * ขั้นที่ 3: ไล่หาค่า KP ซ้ำโดยคงค่า KD ไว้ ค่าที่ได้จากขั้นนี้คือค่าที่เอาไปใช้จริง
-     * ข้ามขั้นนี้ไม่ได้ เพราะค่าจากขั้นที่ 1 ต่ำกว่าความจริงเสมอ
-     */
-    //% group="จูน PID"
-    //% subcategory="เดินตามเส้น"
-    //% weight=77
-    //% block="จูน KP (คง KD) ความเร็ว $speed ตั้งแต่ $from ถึง $to"
-    //% speed.min=0 speed.max=100 speed.defl=40
-    //% from.defl=0.02 to.defl=0.40
-    //% inlineInputMode=inline
-    export function lineTuneKpWithKd(speed: number, from: number, to: number): void {
-        if (!tuneReady()) return
-        let rkp = tuneSweep("KP", true, speed, from, to)
-        if (rkp[3] == 0) return
-        kidsKPBand[bandOf(kidsClamp(speed, 0, 100))] = rkp[0]
-    }
-
-    /**
-     * วัดการส่ายด้วยค่า KP KD ที่ตั้งอยู่ตอนนี้ คืนค่าส่ายเฉลี่ย ยิ่งน้อยยิ่งเกาะเส้นนิ่ง
-     * @param speed ความเร็ว 0-100
-     * @param seconds วัดนานกี่วินาที
-     */
-    //% group="จูน PID"
-    //% subcategory="เดินตามเส้น"
-    //% weight=76
-    //% block="วัดการส่าย ความเร็ว $speed นาน $seconds วินาที"
-    //% speed.min=0 speed.max=100 speed.defl=40
-    //% seconds.min=1 seconds.defl=4
-    //% inlineInputMode=inline
-    export function lineWobble(speed: number, seconds: number): number {
-        kidsLineReady()
-        speed = kidsClamp(speed, 0, 100)
-        let r = tuneScore(kpFor(speed), kdFor(speed), speed, Math.max(1, seconds) * 1000)
-        serial.writeLine("WOBBLE avg " + r[0] + " max " + r[1])
-        if (oledIsReady()) {
-            oledClear()
-            oledShowLine("WOBBLE", 1)
-            oledShowLine("avg " + r[0], 2)
-            oledShowLine("max " + r[1], 3)
-        }
-        return r[0]
-    }
-
-    /**
-     * ค่าความไวที่ใช้อยู่ตอนนี้ เอาไว้จดไปใส่บล็อก "ปรับความไวเดินตามเส้น"
-     */
-    //% group="จูน PID"
-    //% subcategory="เดินตามเส้น"
-    //% weight=75
-    //% block="ค่าความไว ช่วง $band $which"
-    //% inlineInputMode=inline
-    export function lineGain(band: Kids_Band, which: Kids_Gain): number {
-        return which == Kids_Gain.KP ? kidsKPBand[band] : kidsKDBand[band]
-    }
-
-    /**
-     * สำหรับครู: ปรับค่าความไวในการเดินตามเส้นให้เหมือนกันทุกช่วงความเร็ว
-     * ถ้าต้องการแยกทีละช่วง ใช้บล็อก "ปรับความไว ช่วง _" แทน
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=88
-    //% block="ปรับความไวเดินตามเส้น KP $kp KD $kd"
-    //% kp.defl=0.05 kd.defl=0.1
-    export function lineTuning(kp: number, kd: number): void {
-        for (let i = 0; i < 3; i++) {
-            kidsKPBand[i] = kp
-            kidsKDBand[i] = kd
-        }
-    }
-
-    /**
-     * ปรับความไวเฉพาะช่วงความเร็วเดียว
+     * ปรับความไวในการเดินตามเส้น เลือกได้ว่าจะใช้กับทุกช่วงความเร็ว หรือเฉพาะช่วงเดียว
      * หุ่นจะหยิบค่าของช่วงที่ตรงกับความเร็วที่สั่งไปใช้เอง
+     * ค่าที่ได้จากบล็อก "จูนอัตโนมัติ" เอามาใส่บล็อกนี้ได้เลย
      * @param band ช่วงความเร็ว
-     * @param kp ค่า KP ของช่วงนี้
-     * @param kd ค่า KD ของช่วงนี้
+     * @param kp ค่า KP
+     * @param kd ค่า KD
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
@@ -969,44 +796,38 @@ namespace KrathokKidsBit {
     //% block="ปรับความไว ช่วง $band KP $kp KD $kd"
     //% kp.defl=0.05 kd.defl=0.1
     //% inlineInputMode=inline
-    export function lineTuningBand(band: Kids_Band, kp: number, kd: number): void {
-        kidsKPBand[band] = kp
-        kidsKDBand[band] = kd
+    export function lineTuning(band: Kids_Band, kp: number, kd: number): void {
+        for (let i = 0; i < 3; i++) {
+            if (band == Kids_Band.All || band == i) {
+                kidsKPBand[i] = kp
+                kidsKDBand[i] = kd
+            }
+        }
     }
 
     /**
-     * ความนุ่มของการหักเลี้ยว 0 = ไม่กรองเลย (ดิบเหมือนเดิม) ยิ่งมากยิ่งนุ่ม
+     * ปรับวิธีอ่านเส้น
      *
-     * ตำแหน่งเส้นกระโดดเป็นขั้นเวลาเซ็นเซอร์เข้าหรือออกจากเกณฑ์
+     * ความนุ่ม (0-95): ตำแหน่งเส้นกระโดดเป็นขั้นเวลาเซ็นเซอร์เข้าหรือออกจากเกณฑ์
      * ตัว D จึงเด้งเป็นหนาม ทำให้เข้าโค้งกระตุก ค่านี้คุมว่าจะปาดหนามลงแค่ไหน
-     * มากไปหุ่นจะตอบสนองช้าและเริ่มส่าย แนะนำ 40-70
-     * @param amount ความนุ่ม 0-95
+     * 0 = ไม่กรองเลย มากไปหุ่นจะตอบสนองช้าและเริ่มส่าย แนะนำ 40-70
+     *
+     * เกณฑ์เห็นเส้น (10-900): ค่าสูงนับเฉพาะตัวที่เห็นเส้นชัด ๆ หุ่นอาจกระตุก
+     * ค่าต่ำนับตัวที่เห็นแค่ขอบด้วย ตำแหน่งเปลี่ยนต่อเนื่องกว่า
+     * แต่ถ้าต่ำเกินไปจะไวต่อคราบสกปรกบนพื้น แนะนำ 80-200
+     * @param smooth ความนุ่มการหักเลี้ยว 0-95
+     * @param threshold เกณฑ์นับว่าเห็นเส้น 10-900
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
     //% weight=86
-    //% block="ความนุ่มการหักเลี้ยว $amount"
-    //% amount.min=0 amount.max=95 amount.defl=50
-    export function lineSteerSmooth(amount: number): void {
-        D_Filter = kidsClamp(amount, 0, 95)
-    }
-
-    /**
-     * เกณฑ์ที่ถือว่าเซ็นเซอร์ตัวหนึ่ง "เห็นเส้น" แล้วเอามาคิดตำแหน่ง (0-1000)
-     *
-     * ค่าสูงจะนับเฉพาะตัวที่เห็นเส้นชัด ๆ ทำให้บางจังหวะเหลือตัวเดียว
-     * ตำแหน่งเส้นจะนิ่งสนิทแล้วกระโดดทีเดียว หุ่นเลยกระตุก
-     * ค่าต่ำจะนับตัวที่เห็นเส้นแค่ขอบ ๆ ด้วย ตำแหน่งจึงเปลี่ยนต่อเนื่องกว่า
-     * แต่ถ้าต่ำเกินไปจะไวต่อคราบสกปรกบนพื้น แนะนำ 80-200
-     * @param level เกณฑ์ 0-1000
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=85
-    //% block="เกณฑ์นับว่าเห็นเส้น $level"
-    //% level.min=10 level.max=900 level.defl=200
-    export function lineOnThreshold(level: number): void {
-        Sensor_On_Threshold = kidsClamp(level, 10, 900)
+    //% block="ปรับการอ่านเส้น ความนุ่ม $smooth เกณฑ์เห็นเส้น $threshold"
+    //% smooth.min=0 smooth.max=95 smooth.defl=50
+    //% threshold.min=10 threshold.max=900 threshold.defl=200
+    //% inlineInputMode=inline
+    export function lineReading(smooth: number, threshold: number): void {
+        D_Filter = kidsClamp(smooth, 0, 95)
+        Sensor_On_Threshold = kidsClamp(threshold, 10, 900)
     }
 
     // ================= เซ็นเซอร์ =================
@@ -1082,108 +903,70 @@ namespace KrathokKidsBit {
     let armStepMs = 400
 
     /**
-     * ตั้งค่าก้ามหนีบ ว่าอยู่เซอร์โวช่องไหน และมุมตอนเปิดกับตอนหนีบเป็นเท่าไร
-     * @param servo ช่องเซอร์โวของก้าม
+     * ตั้งค่าแขนกล ว่าก้ามหนีบกับแขนยกอยู่เซอร์โวช่องไหน และใช้มุมเท่าไร
+     * @param gripServoCh ช่องเซอร์โวของก้าม
      * @param open มุมตอนอ้าก้าม
      * @param close มุมตอนหนีบ
+     * @param armServoCh ช่องเซอร์โวของแขน
+     * @param up มุมตอนยกแขน
+     * @param down มุมตอนลดแขน
+     * @param ms เวลารอให้เซอร์โวขยับถึงที่ต่อหนึ่งท่า ถ้าแขนหนักหรือขยับไกลให้เพิ่มเวลา
      */
     //% group="แขนและก้าม"
     //% subcategory="เซอร์โว"
     //% weight=69
-    //% block="ตั้งค่าก้ามหนีบ ช่อง $servo เปิด $open องศา หนีบ $close องศา"
+    //% block="ตั้งค่าแขนกล ก้ามช่อง $gripServoCh เปิด $open หนีบ $close|แขนช่อง $armServoCh ยก $up ลง $down||รอท่าละ $ms มิลลิวินาที"
+    //% expandableArgumentMode="toggle"
+    //% gripServoCh.defl=Kids_Servo.S0 armServoCh.defl=Kids_Servo.S1
     //% open.shadow="protractorPicker" open.defl=175
     //% close.shadow="protractorPicker" close.defl=5
+    //% up.shadow="protractorPicker" up.defl=90
+    //% down.shadow="protractorPicker" down.defl=20
+    //% ms.shadow="timePicker" ms.defl=400
     //% inlineInputMode=inline
-    export function gripSetup(servo: Kids_Servo, open: number, close: number): void {
-        gripServo = servo
+    export function armSetup(gripServoCh: Kids_Servo, open: number, close: number, armServoCh: Kids_Servo, up: number, down: number, ms: number = 400): void {
+        gripServo = gripServoCh
         gripOpen = kidsClamp(open, 0, 180)
         gripClose = kidsClamp(close, 0, 180)
+        armServo = armServoCh
+        armUp = kidsClamp(up, 0, 180)
+        armDown = kidsClamp(down, 0, 180)
+        armStepMs = Math.max(0, ms)
+    }
+
+    // ขยับเซอร์โวหนึ่งท่า แล้วรอให้ถึงที่
+    function armMove(servo: Kids_Servo, degrees: number): void {
+        kidsServo(servo, degrees)
+        basic.pause(armStepMs)
     }
 
     /**
-     * ตั้งค่าแขนยก ว่าอยู่เซอร์โวช่องไหน และมุมตอนยกกับตอนลงเป็นเท่าไร
-     * @param servo ช่องเซอร์โวของแขน
-     * @param up มุมตอนยกขึ้น
-     * @param down มุมตอนลดลง
+     * สั่งแขนกลทำท่าที่เลือก
+     * จับแล้วยก = อ้าก้าม → ลดแขน → หนีบ → ยกแขน
+     * วางแล้วปล่อย = ลดแขน → อ้าก้าม → ยกแขน
      */
     //% group="แขนและก้าม"
     //% subcategory="เซอร์โว"
     //% weight=68
-    //% block="ตั้งค่าแขนยก ช่อง $servo ยก $up องศา ลง $down องศา"
-    //% up.shadow="protractorPicker" up.defl=90
-    //% down.shadow="protractorPicker" down.defl=20
-    //% inlineInputMode=inline
-    export function armSetup(servo: Kids_Servo, up: number, down: number): void {
-        armServo = servo
-        armUp = kidsClamp(up, 0, 180)
-        armDown = kidsClamp(down, 0, 180)
-    }
-
-    /**
-     * รอให้เซอร์โวขยับถึงที่นานกี่มิลลิวินาที ก่อนทำท่าถัดไป
-     * ถ้าแขนหนักหรือขยับไกล ให้เพิ่มเวลา
-     * @param ms เวลารอต่อหนึ่งท่า
-     */
-    //% group="แขนและก้าม"
-    //% subcategory="เซอร์โว"
-    //% weight=67
-    //% block="รอแขนขยับ $ms มิลลิวินาที"
-    //% ms.shadow="timePicker" ms.defl=400
-    export function armStepTime(ms: number): void {
-        armStepMs = Math.max(0, ms)
-    }
-
-    /**
-     * สั่งก้ามหนีบอย่างเดียว
-     */
-    //% group="แขนและก้าม"
-    //% subcategory="เซอร์โว"
-    //% weight=66
-    //% block="ก้าม $action"
-    export function grip(action: Kids_Grip): void {
-        kidsServo(gripServo, action == Kids_Grip.Open ? gripOpen : gripClose)
-        basic.pause(armStepMs)
-    }
-
-    /**
-     * สั่งแขนอย่างเดียว
-     */
-    //% group="แขนและก้าม"
-    //% subcategory="เซอร์โว"
-    //% weight=65
-    //% block="แขน $action"
-    export function arm(action: Kids_Arm): void {
-        kidsServo(armServo, action == Kids_Arm.Up ? armUp : armDown)
-        basic.pause(armStepMs)
-    }
-
-    /**
-     * จับของแล้วยกขึ้น ทำสี่ท่าต่อกัน
-     * อ้าก้าม -> ลดแขนลง -> หนีบ -> ยกแขนขึ้น
-     */
-    //% group="แขนและก้าม"
-    //% subcategory="เซอร์โว"
-    //% weight=64
-    //% block="จับแล้วยก"
-    export function gripAndLift(): void {
-        grip(Kids_Grip.Open)
-        arm(Kids_Arm.Down)
-        grip(Kids_Grip.Close)
-        arm(Kids_Arm.Up)
-    }
-
-    /**
-     * วางของแล้วปล่อย ทำสามท่าต่อกัน
-     * ลดแขนลง -> อ้าก้ามปล่อยของ -> ยกแขนขึ้น
-     */
-    //% group="แขนและก้าม"
-    //% subcategory="เซอร์โว"
-    //% weight=63
-    //% block="วางแล้วปล่อย"
-    export function placeAndRelease(): void {
-        arm(Kids_Arm.Down)
-        grip(Kids_Grip.Open)
-        arm(Kids_Arm.Up)
+    //% block="แขนกล $action"
+    export function armDo(action: Kids_ArmAction): void {
+        switch (action) {
+            case Kids_ArmAction.OpenGrip: armMove(gripServo, gripOpen); break
+            case Kids_ArmAction.CloseGrip: armMove(gripServo, gripClose); break
+            case Kids_ArmAction.ArmUp: armMove(armServo, armUp); break
+            case Kids_ArmAction.ArmDown: armMove(armServo, armDown); break
+            case Kids_ArmAction.GripAndLift:
+                armMove(gripServo, gripOpen)
+                armMove(armServo, armDown)
+                armMove(gripServo, gripClose)
+                armMove(armServo, armUp)
+                break
+            case Kids_ArmAction.PlaceAndRelease:
+                armMove(armServo, armDown)
+                armMove(gripServo, gripOpen)
+                armMove(armServo, armUp)
+                break
+        }
     }
 
     /**

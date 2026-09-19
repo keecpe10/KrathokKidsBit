@@ -4,6 +4,19 @@
  * Wiring: VCC -> 3V3, GND -> GND, SCL -> P19 (SCL), SDA -> P20 (SDA)
  */
 
+enum OLED_SensorView {
+    //% block="ค่าเซ็นเซอร์เส้น"
+    Values,
+    //% block="กราฟแท่งเซ็นเซอร์เส้น"
+    Bars,
+    //% block="ค่าเซ็นเซอร์รายช่อง"
+    Channels,
+    //% block="ค่าคาลิเบรต"
+    Calibration,
+    //% block="ตรวจสอบฮาร์ดแวร์"
+    Hardware
+}
+
 enum OLED_Address {
     //% block="0x3C"
     Addr_0x3C = 0x3C,
@@ -25,13 +38,6 @@ enum OLED_Fill {
     Outline,
     //% block="ทึบ"
     Filled
-}
-
-enum OLED_OnOff {
-    //% block="เปิด"
-    On,
-    //% block="ปิด"
-    Off
 }
 
 namespace KrathokKidsBit {
@@ -234,14 +240,18 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * Initialize OLED 1.3 inch (SH1106 128x64) on I2C (SCL=P19, SDA=P20)
+     * เริ่มใช้จอ OLED 1.3 นิ้ว (SH1106 128x64) ต่อ I2C (SCL=P19, SDA=P20)
+     * ถ้าติดจอกลับหัว กด ⊕ แล้วเปิด "หมุนจอ 180 องศา"
      */
     //% group="เริ่มต้นจอ"
     //% subcategory="จอ OLED"
     //% weight=100
-    //% block="เริ่มใช้จอ OLED ที่อยู่ %addr"
+    //% block="เริ่มใช้จอ OLED ที่อยู่ %addr||หมุนจอ 180 องศา %rotate"
+    //% expandableArgumentMode="toggle"
     //% addr.defl=OLED_Address.Addr_0x3C
-    export function oledInit(addr: OLED_Address): void {
+    //% rotate.shadow="toggleOnOff" rotate.defl=true
+    export function oledInit(addr: OLED_Address, rotate: boolean = false): void {
+        oledRotate180(rotate)
         oledBegin(addr)
     }
 
@@ -260,65 +270,39 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * แสดงข้อความที่บรรทัด 1-8 (ลบข้อความเดิมในบรรทัดนั้นก่อน)
+     * แสดงข้อความหรือตัวเลขที่บรรทัด 1-8 (ลบของเดิมในบรรทัดนั้นก่อน)
+     * อยากแสดงชื่อคู่กับค่า ใช้บล็อก "ต่อข้อความ" เช่น ระยะ = 25
      */
     //% group="ข้อความและตัวเลข"
     //% subcategory="จอ OLED"
     //% weight=90
-    //% block="จอ OLED แสดงข้อความ %text|บรรทัดที่ %line"
-    //% text.defl="Hello"
+    //% block="จอ OLED แสดง %text|บรรทัดที่ %line"
+    //% text.shadow="text" text.defl="Hello"
     //% line.min=1 line.max=8 line.defl=1
-    export function oledShowLine(text: string, line: number): void {
+    export function oledShowLine(text: any, line: number): void {
         oledCheck()
         line = Math.max(0, Math.min(7, Math.floor(line) - 1))
         oledFillRectRaw(0, line * 8, OLED_W, 8, OLED_Color.Black)
-        oledText(text, 0, line * 8, 1, OLED_Color.White)
+        oledText("" + text, 0, line * 8, 1, OLED_Color.White)
         oledUpdate()
     }
 
     /**
-     * แสดงตัวเลขที่บรรทัด 1-8
-     */
-    //% group="ข้อความและตัวเลข"
-    //% subcategory="จอ OLED"
-    //% weight=89
-    //% block="จอ OLED แสดงตัวเลข %num|บรรทัดที่ %line"
-    //% line.min=1 line.max=8 line.defl=2
-    export function oledShowNumberLine(num: number, line: number): void {
-        oledShowLine("" + num, line)
-    }
-
-    /**
-     * Show text at position x (0-127), y (0-63) with size 1-4
+     * เขียนข้อความหรือตัวเลขที่ตำแหน่ง x (0-127), y (0-63) ขนาด 1-4
      */
     //% group="ข้อความและตัวเลข"
     //% subcategory="จอ OLED"
     //% weight=86
-    //% block="จอ OLED เขียนข้อความ %text|ที่ x %x|y %y|ขนาด %size|สี %color"
-    //% text.defl="KidsBit"
+    //% block="จอ OLED เขียน %text|ที่ x %x|y %y|ขนาด %size|สี %color"
+    //% text.shadow="text" text.defl="KidsBit"
     //% x.min=0 x.max=127 y.min=0 y.max=63
     //% size.min=1 size.max=4 size.defl=1
     //% color.defl=OLED_Color.White
     //% inlineInputMode=inline
-    export function oledShowString(text: string, x: number, y: number, size: number, color: OLED_Color): void {
+    export function oledShowString(text: any, x: number, y: number, size: number, color: OLED_Color): void {
         oledCheck()
-        oledText(text, x, y, size, color)
+        oledText("" + text, x, y, size, color)
         oledUpdate()
-    }
-
-    /**
-     * Show number at position x (0-127), y (0-63) with size 1-4
-     */
-    //% group="ข้อความและตัวเลข"
-    //% subcategory="จอ OLED"
-    //% weight=85
-    //% block="จอ OLED เขียนตัวเลข %num|ที่ x %x|y %y|ขนาด %size|สี %color"
-    //% x.min=0 x.max=127 y.min=0 y.max=63
-    //% size.min=1 size.max=4 size.defl=1
-    //% color.defl=OLED_Color.White
-    //% inlineInputMode=inline
-    export function oledShowNumber(num: number, x: number, y: number, size: number, color: OLED_Color): void {
-        oledShowString("" + num, x, y, size, color)
     }
 
     /**
@@ -464,20 +448,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * แสดงชื่อและค่า เช่น ระยะ = 25 ที่บรรทัด 1-8
-     */
-    //% group="ข้อความและตัวเลข"
-    //% subcategory="จอ OLED"
-    //% weight=88
-    //% block="จอ OLED แสดง %label|= %value|บรรทัดที่ %line"
-    //% label.defl="Distance"
-    //% line.min=1 line.max=8 line.defl=3
-    //% inlineInputMode=inline
-    export function oledShowValue(label: string, value: number, line: number): void {
-        oledShowLine(label + " = " + value, line)
-    }
-
-    /**
      * แสดงข้อความตัวใหญ่ (สูง 2 บรรทัด) เริ่มที่บรรทัด 1-7
      */
     //% group="ข้อความและตัวเลข"
@@ -495,58 +465,31 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * Invert the whole display colors
+     * ตั้งค่าจอ: กลับสีทั้งจอ และความสว่าง 0-255
      */
     //% group="ตั้งค่าจอ"
     //% subcategory="จอ OLED"
     //% weight=70
-    //% block="จอ OLED กลับสีทั้งจอ %invert"
-    //% invert.shadow="toggleOnOff"
-    export function oledInvert(invert: boolean): void {
+    //% block="ตั้งค่าจอ OLED กลับสี %invert|ความสว่าง %brightness"
+    //% invert.shadow="toggleOnOff" invert.defl=false
+    //% brightness.min=0 brightness.max=255 brightness.defl=255
+    //% inlineInputMode=inline
+    export function oledSettings(invert: boolean, brightness: number): void {
         oledCheck()
         oledCommand(invert ? 0xA7 : 0xA6)
+        oledCommand2(0x81, Math.max(0, Math.min(255, Math.floor(brightness))))
     }
 
-    /**
-     * Set display brightness (contrast) 0-255
-     */
-    //% group="ตั้งค่าจอ"
-    //% subcategory="จอ OLED"
-    //% weight=69
-    //% block="จอ OLED ความสว่าง %value"
-    //% value.min=0 value.max=255 value.defl=255
-    export function oledBrightness(value: number): void {
-        oledCheck()
-        oledCommand2(0x81, Math.max(0, Math.min(255, Math.floor(value))))
-    }
-
-    /**
-     * Turn display ON or OFF (keeps screen memory)
-     */
     /**
      * หมุนภาพบนจอ 180 องศา สำหรับตอนติดตั้งจอกลับหัว
      * ตั้งค่าไว้ได้ก่อนเรียก "เริ่มใช้จอ OLED" ค่าจะไม่หายเมื่อจอเริ่มทำงาน
      */
-    //% group="ตั้งค่าจอ"
-    //% subcategory="จอ OLED"
-    //% weight=67
-    //% block="จอ OLED หมุนจอ 180 องศา %on"
-    //% on.shadow="toggleOnOff"
     export function oledRotate180(on: boolean): void {
         oledFlip180 = on
         if (!oledReady) return
         oledApplyRotation()
         oledDirty = 0xFF
         oledUpdate()
-    }
-
-    //% group="ตั้งค่าจอ"
-    //% subcategory="จอ OLED"
-    //% weight=68
-    //% block="จอ OLED %state จอ"
-    export function oledDisplay(state: OLED_OnOff): void {
-        oledCheck()
-        oledCommand(state == OLED_OnOff.On ? 0xAF : 0xAE)
     }
 
     /**
@@ -636,13 +579,27 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
     }
 
     /**
-     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
-     * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
+     * แสดงข้อมูลเซ็นเซอร์บนจอ เลือกแบบที่ต้องการ
+     * ค่าเซ็นเซอร์เส้น / กราฟแท่ง / รายช่อง ใส่ไว้ใน "วนซ้ำตลอดไป" เพื่อดูค่าสด
      */
     //% group="เซ็นเซอร์บนจอ"
     //% subcategory="จอ OLED"
     //% weight=60
-    //% block="จอ OLED แสดงค่าเซ็นเซอร์เส้น"
+    //% block="จอ OLED แสดง %view"
+    export function oledShowSensor(view: OLED_SensorView): void {
+        switch (view) {
+            case OLED_SensorView.Values: oledLineSensorValues(); break
+            case OLED_SensorView.Bars: oledLineSensorBars(); break
+            case OLED_SensorView.Channels: oledLineSensorChannels(); break
+            case OLED_SensorView.Calibration: oledShowCalibration(); break
+            case OLED_SensorView.Hardware: oledHardwareCheck(); break
+        }
+    }
+
+    /**
+     * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นตัวเลขบนจอ
+     * L = ซ้าย, C = กลาง, R = ขวา (ค่าดิบจาก ADC), % = ค่าที่แปลงแล้ว (100 = บนเส้น)
+     */
     export function oledLineSensorValues(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -701,13 +658,8 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
 
     /**
      * แสดงค่าเซ็นเซอร์พร้อมหมายเลขช่อง เช่น CH0 1200
-     * ใช้จดค่าตอนอยู่บนเส้น (ดำ) และบนพื้น (ขาว) ไปใส่บล็อก "ตั้งค่าเซ็นเซอร์ช่อง"
-     * ชื่อที่แสดงตรงกับหมายเลขช่องที่บล็อกนั้นรับ จึงใส่ต่อได้ทันที
+     * ใช้จดค่าตอนอยู่บนเส้น (ดำ) และบนพื้น (ขาว) ไปใส่บล็อก "ตั้งค่าเซ็นเซอร์" เรียงตามหมายเลขช่อง
      */
-    //% group="เซ็นเซอร์บนจอ"
-    //% subcategory="จอ OLED"
-    //% weight=58
-    //% block="จอ OLED แสดงค่าเซ็นเซอร์รายช่อง"
     export function oledLineSensorChannels(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -776,10 +728,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * ไล่หาอุปกรณ์ I2C แล้วอ่านค่าดิบครบทั้ง 8 ช่อง ADC
      * แสดงบนจอ OLED และส่งออกทางสาย USB พร้อมกัน จึงดูได้แม้ไม่มีจอ
      */
-    //% group="เซ็นเซอร์บนจอ"
-    //% subcategory="จอ OLED"
-    //% weight=56
-    //% block="จอ OLED ตรวจสอบฮาร์ดแวร์"
     export function oledHardwareCheck(): void {
         // บอร์ดรุ่นใหม่ใช้ ADC ที่ 0x49 คืนค่า 8 บิต รุ่นเดิมใช้ ADS7828 ที่ 0x48 คืน 12 บิต
         // ไล่ต่อถึง 0x4B ด้วย เพราะ ADS7828 ตั้งที่อยู่ได้ด้วยขา A0/A1
@@ -841,10 +789,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * ใช้ตรวจว่าค่าที่สอนหรือใส่ไว้ตรงกับที่เซ็นเซอร์อ่านได้จริงไหม
      * ช่องที่ยังไม่ได้ตั้งค่าจะขึ้นขีด
      */
-    //% group="เซ็นเซอร์บนจอ"
-    //% subcategory="จอ OLED"
-    //% weight=57
-    //% block="จอ OLED แสดงค่าคาลิเบรต"
     export function oledShowCalibration(): void {
         oledCheck()
         oledBuf.fill(0)
@@ -880,10 +824,6 @@ fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c
      * แสดงค่าเซ็นเซอร์เดินตามเส้นเป็นกราฟแท่ง เรียงตามตำแหน่งจริงซ้าย -> ขวา
      * แท่งยิ่งสูง = ยิ่งเห็นเส้นชัด แถบทึบใต้แท่ง = เซ็นเซอร์ตัวนั้นอยู่บนเส้น
      */
-    //% group="เซ็นเซอร์บนจอ"
-    //% subcategory="จอ OLED"
-    //% weight=59
-    //% block="จอ OLED กราฟแท่งเซ็นเซอร์เส้น"
     export function oledLineSensorBars(): void {
         oledCheck()
         oledBuf.fill(0)

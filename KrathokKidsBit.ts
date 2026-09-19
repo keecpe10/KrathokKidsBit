@@ -38,18 +38,12 @@ let Sensor_On_Threshold = 200   // ต่ำกว่านี้ถือว่
 let PD_Value = 0
 let left_motor_speed = 0
 let right_motor_speed = 0
-let last_degree_P8 = 0;
-let last_degree_P12 = 0;
 let distance = 0
 let timer = 0
 
 let BNO055_I2C_ADDR = 0x29
 let BNO055_OPR_MODE = 0x3D
-let OPERATION_MODE_GYRONLY = 0X03
-let OPERATION_MODE_ACCGYRO = 0X05
 let OPERATION_MODE_IMUPLUS = 0X08
-let OPERATION_MODE_NDOF_FMC_OFF = 0X0B
-let OPERATION_MODE_NDOF = 0x0C
 let EULER_R_LSB = 0x1C
 let EULER_R_MSB = 0x1D
 let EULER_P_LSB = 0x1E
@@ -58,17 +52,6 @@ let EULER_Y_LSB = 0x1A
 let EULER_Y_MSB = 0x1B
 let initIMU = false
 let angle_offset: number[] = [0, 0, 0]
-
-enum Motor_Write {
-    //% block="1"
-    Motor_1,
-    //% block="2"
-    Motor_2,
-    //% block="3"
-    Motor_3,
-    //% block="4"
-    Motor_4
-}
 
 enum _Turn {
     //% block="Left"
@@ -101,24 +84,6 @@ enum Servo_Write {
     S6,
     //% block="S7"
     S7
-}
-
-enum Button_Status {
-    //% block="Pressed"
-    Pressed,
-    //% block="Released"
-    Released
-}
-
-enum Button_Pin {
-    //% block="P1"
-    P1,
-    //% block="P2"
-    P2,
-    //% block="P8"
-    P8,
-    //% block="P12"
-    P12
 }
 
 enum Ultrasonic_PIN {
@@ -201,13 +166,6 @@ enum Cal_Which {
     Ground
 }
 
-enum Line_Follow_Mode {
-    //% block="ตามเส้นที่สอนไว้"
-    Normal = 0,
-    //% block="สลับเส้นกับพื้น"
-    Invert = 1
-}
-
 enum Angle {
     //% block="Yaw"
     Yaw,
@@ -218,7 +176,7 @@ enum Angle {
 }
 
 //% color="#51cbc7" icon="\u2B9A" block="KrathokKidsBit"
-//% groups='["เริ่มและรอ", "เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "จูน PID", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ", "Motor Basic", "Motor + IMU", "Servo Advanced", "IMU Angle", "Ultrasonic", "ADC", "Line Setup", "Line Follow PID"]'
+//% groups='["เริ่มและหยุด", "เคลื่อนที่พื้นฐาน", "เคลื่อนที่แม่นยำ", "ตั้งค่าเส้น", "สั่งเดินตามเส้น", "ระยะทาง", "เซ็นเซอร์เส้น", "ทิศทาง", "เซอร์โว", "แขนและก้าม", "เริ่มต้นจอ", "ข้อความและตัวเลข", "วาดรูป", "ตั้งค่าจอ", "เซ็นเซอร์บนจอ"]'
 //% subcategories='["เดินตามเส้น", "เซ็นเซอร์", "เซอร์โว", "จอ OLED"]'
 namespace KrathokKidsBit {
     /**
@@ -269,10 +227,6 @@ namespace KrathokKidsBit {
 
     export function waitButtonA(): void {
         waitButton(Button.A)
-    }
-
-    export function waitButtonB(): void {
-        waitButton(Button.B)
     }
 
     /**
@@ -523,8 +477,8 @@ namespace KrathokKidsBit {
      * มอเตอร์ถูกสั่งหยุดและถูกล็อกไว้ที่ 0 เซอร์โวไม่รับคำสั่งอีก
      * และลูปเกาะเส้นที่ค้างอยู่จะออกจากลูปเอง ต่อให้มีบล็อกอื่นเรียกซ้ำก็ไม่ขยับ
      */
-    //% group="เคลื่อนที่พื้นฐาน"
-    //% weight=10
+    //% group="เริ่มและหยุด"
+    //% weight=90
     //% block="หยุดทำงานทั้งหมด"
     export function haltAll(): void {
         kidsHalted = true
@@ -549,79 +503,29 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * ดรอปดาวน์เลือกหมายเลขช่อง ADC 0-7
-     * ใช้เป็น shadow ของพารามิเตอร์ช่อง จะได้เลือกแทนการพิมพ์
-     * ยังเป็นตัวเลขอยู่ จึงลากตัวแปรมาเสียบแทนได้เหมือนเดิม
-     * @param ch หมายเลขช่อง
-     */
-    //% blockId=kidsChannelPicker block="%ch"
-    //% blockHidden=true shim=TD_ID
-    //% colorSecondary="#FFFFFF"
-    //% ch.fieldEditor="numberdropdown" ch.fieldOptions.decompileLiterals=true
-    //% ch.fieldOptions.data='[["0", 0], ["1", 1], ["2", 2], ["3", 3], ["4", 4], ["5", 5], ["6", 6], ["7", 7]]'
-    export function __channelPicker(ch: number): number {
-        return ch
-    }
-
-    /**
-     * ใส่ค่าคาลิเบรตของเซ็นเซอร์ทีละช่องเอง แทนการสอนด้วยปุ่ม A
-     * ใช้ตอนรู้ค่าอยู่แล้ว จะได้ไม่ต้องสอนเซ็นเซอร์ใหม่ทุกครั้งก่อนปล่อยหุ่น
-     * @param ch หมายเลขช่อง ADC 0-7
-     * @param onLine ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนเส้น
-     * @param onGround ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนพื้น
+     * ใส่ค่าคาลิเบรตของเซ็นเซอร์ทุกช่องในบล็อกเดียว แทนการสอนด้วยปุ่ม A
+     * ใส่ค่าเรียงตามช่อง 0, 1, 2, ... 7 ช่องไหนไม่ใส่จะไม่ถูกเปลี่ยน
+     * ใช้ตอนรู้ค่าอยู่แล้ว (ดูได้จากบล็อก "จอ OLED แสดง ค่าคาลิเบรต")
+     * จะได้ไม่ต้องสอนเซ็นเซอร์ใหม่ทุกครั้งก่อนปล่อยหุ่น
+     * @param onLine ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนเส้น เรียงช่อง 0-7
+     * @param onGround ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนพื้น เรียงช่อง 0-7
      */
     //% group="ตั้งค่าเส้น"
     //% subcategory="เดินตามเส้น"
-    //% weight=85
-    //% block="ตั้งค่าเซ็นเซอร์ช่อง $ch บนเส้น $onLine บนพื้น $onGround"
-    //% ch.shadow="kidsChannelPicker" ch.defl=0
-    //% onLine.min=0 onLine.max=4095 onLine.defl=0
-    //% onGround.min=0 onGround.max=4095 onGround.defl=4090
-    //% inlineInputMode=inline
-    export function setSensorCal(ch: number, onLine: number, onGround: number): void {
-        ch = Math.floor(ch)
-        if (!validCh(ch)) {
-            calBeepBad()
-            return
-        }
-        storeCal(ch, onLine, onGround)
+    //% weight=88
+    //% block="ตั้งค่าเซ็นเซอร์ บนเส้น $onLine|บนพื้น $onGround"
+    //% onLine.shadow="lists_create_with" onGround.shadow="lists_create_with"
+    export function setSensorCal(onLine: number[], onGround: number[]): void {
+        let n = Math.min(8, Math.min(onLine.length, onGround.length))
+        if (n == 0 || onLine.length != onGround.length) calBeepBad()
+        for (let ch = 0; ch < n; ch++) storeCal(ch, onLine[ch], onGround[ch])
         applyCal()
     }
 
     /**
-     * ใส่ค่าคาลิเบรตชุดเดียวกันให้เซ็นเซอร์ทุกตัวที่ตั้งค่าไว้ ทั้งกลาง ซ้าย และขวา
-     * @param onLine ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนเส้น
-     * @param onGround ค่าที่อ่านได้ตอนเซ็นเซอร์อยู่บนพื้น
-     */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=84
-    //% block="ตั้งค่าเซ็นเซอร์ทุกช่อง บนเส้น $onLine บนพื้น $onGround"
-    //% onLine.min=0 onLine.max=4095 onLine.defl=0
-    //% onGround.min=0 onGround.max=4095 onGround.defl=4090
-    //% inlineInputMode=inline
-    export function setAllSensorCal(onLine: number, onGround: number): void {
-        if (Sensor_PIN.length == 0) {
-            // ยังไม่ได้บอกว่าใช้เซ็นเซอร์ช่องไหนบ้าง จึงไม่รู้ว่าจะใส่ให้ตัวไหน
-            calBeepBad()
-            return
-        }
-        for (let i = 0; i < Sensor_PIN.length; i++) storeCal(Sensor_PIN[i], onLine, onGround)
-        for (let i = 0; i < Sensor_Left.length; i++) storeCal(Sensor_Left[i], onLine, onGround)
-        for (let i = 0; i < Sensor_Right.length; i++) storeCal(Sensor_Right[i], onLine, onGround)
-        applyCal()
-    }
-
-    /**
-     * อ่านค่าคาลิเบรตที่เก็บไว้ของช่องหนึ่ง เอาไว้จดไปใส่เองในครั้งต่อไป
+     * อ่านค่าคาลิเบรตที่เก็บไว้ของช่องหนึ่ง
      * @param ch หมายเลขช่อง ADC 0-7
      */
-    //% group="ตั้งค่าเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=83
-    //% block="ค่าคาลิเบรตช่อง $ch $which"
-    //% ch.shadow="kidsChannelPicker" ch.defl=0
-    //% inlineInputMode=inline
     export function getSensorCal(ch: number, which: Cal_Which): number {
         ch = Math.floor(ch)
         if (!validCh(ch)) return 0
@@ -737,10 +641,6 @@ namespace KrathokKidsBit {
     /**
      * Stop all Motor
      */
-    //% group="Motor Basic"
-    //% advanced=true
-    //% weight=100
-    //% block="Motor Stop"
     export function motorStop(): void {
         pins.analogWritePin(AnalogPin.P14, 0)
         pins.analogWritePin(AnalogPin.P13, 0)
@@ -752,19 +652,6 @@ namespace KrathokKidsBit {
     /**
      * Forward or Backward with degrees.
      */
-    //% group="Motor + IMU"
-    //% advanced=true
-    //% weight=90
-    //% block="Direction %Forward_Direction|Time %time|Go Degree %degrees|Min Speed %min_speed|Max Speed %max_speed|KP %kp|KD %kd"
-    //% degrees.min=-180 degrees.max=180
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
-    //% time.shadow="timePicker"
-    //% time.defl=500
-    //% min_speed.defl=70
-    //% max_speed.defl=100
-    //% kp.defl=2
-    //% kd.defl=1
     export function goWithDegreesTime(direction: Forward_Direction, time: number, degrees: number, min_speed: number, max_speed: number, kp: number, kd: number) {
         let timer = control.millis()
         previous_error = 0
@@ -793,56 +680,8 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * Forward or Backward with degrees.
-     */
-    //% group="Motor + IMU"
-    //% advanced=true
-    //% weight=89
-    //% block="Direction %Forward_Direction|Go Degree %degrees|Min Speed %min_speed|Max Speed %max_speed|KP %kp|KD %kd"
-    //% degrees.min=-180 degrees.max=180
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
-    //% min_speed.defl=70
-    //% max_speed.defl=100
-    //% kp.defl=2
-    //% kd.defl=1
-    export function goWithDegrees(direction: Forward_Direction, degrees: number, min_speed: number, max_speed: number, kp: number, kd: number) {
-        error = degrees - anglesRead(Angle.Yaw)
-        if (error > 180) {
-            error += 0 - 360
-        } else if (error < -180) {
-            error += 360
-        }
-        P = error
-        D = error - previous_error
-        PD_Value = (kp * P) + (kd * D)
-        previous_error = error
-
-        steerPair(min_speed, -PD_Value, max_speed)
-
-        if (direction == Forward_Direction.Forward) {
-            motorGo(left_motor_speed, left_motor_speed, right_motor_speed, right_motor_speed)
-        }
-        else {
-            motorGo(-right_motor_speed, -right_motor_speed, -left_motor_speed, -left_motor_speed)
-        }
-    }
-
-    /**
      * Spin the Robot to Degrees.
      */
-    //% group="Motor + IMU"
-    //% advanced=true
-    //% weight=88
-    //% block="Spin Degree %degrees|Low Degree\n %low_degrees|Min Speed\n\n %min_speed|Max Speed\n\n %max_speed"
-    //% degrees.min=-180 degrees.max=180
-    //% low_degrees.min=0 low_degrees.max=180
-    //% min_speed.min=10 min_speed.max=100
-    //% max_speed.min=10 max_speed.max=100
-    //% degrees.defl=90
-    //% low_degrees.defl=80
-    //% min_speed.defl=20
-    //% max_speed.defl=100
     export function spinDegrees(degrees: number, low_degrees: number, min_speed: number, max_speed: number): void {
         if (initIMU == false) {
             initBNO055()
@@ -883,74 +722,8 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * Turn the Robot to Degrees.
-     */
-    //% group="Motor + IMU"
-    //% advanced=true
-    //% weight=87
-    //% block="Direction\n\n %Forward_Direction|Turn Degree %degrees|Low Degree\n %low_degrees|Min Speed\n\n %min_speed|Max Speed\n\n %max_speed"
-    //% degrees.min=-180 degrees.max=180
-    //% low_degrees.min=0 low_degrees.max=180
-    //% min_speed.min=10 min_speed.max=100
-    //% max_speed.min=10 max_speed.max=100
-    //% degrees.defl=90
-    //% low_degrees.defl=45
-    //% min_speed.defl=20
-    //% max_speed.defl=100
-    export function turnDegrees(direction: Forward_Direction, degrees: number, low_degrees: number, min_speed: number, max_speed: number): void {
-        if (initIMU == false) {
-            initBNO055()
-            initIMU = true
-        }
-
-        let timer_turn = 0
-        while (true) {
-            let error_yaw = degrees - anglesRead(Angle.Yaw)
-
-            if (error_yaw > 180) {
-                error_yaw += 0 - 360
-            } else if (error_yaw < -180) {
-                error_yaw += 360
-            }
-
-            let pd_value = error_yaw * (max_speed * 0.02)
-
-            if (Math.abs(error_yaw) < low_degrees) {
-                if (error_yaw < -0.3) {
-                    if (direction == Forward_Direction.Forward) motorGo(min_speed / 4, min_speed / 4, min_speed, min_speed)
-                    else if (direction == Forward_Direction.Backward) motorGo(-min_speed, -min_speed, -min_speed / 4, -min_speed / 4)
-                }
-                else if (error_yaw > 0.3) {
-                    if (direction == Forward_Direction.Forward) motorGo(min_speed, min_speed, min_speed / 4, min_speed / 4)
-                    else if (direction == Forward_Direction.Backward) motorGo(-min_speed / 4, -min_speed / 4, -min_speed, -min_speed)
-                }
-                else {
-                    motorStop()
-                    break;
-                }
-            }
-            else {
-                if (error_yaw < 0) {
-                    if (direction == Forward_Direction.Forward) motorGo(min_speed / 4, min_speed / 4, -pd_value, -pd_value)
-                    else if (direction == Forward_Direction.Backward) motorGo(pd_value, pd_value, -min_speed / 4, -min_speed / 4)
-                } else if (error_yaw > 0) {
-                    if (direction == Forward_Direction.Forward) motorGo(pd_value, pd_value, min_speed / 4, min_speed / 4)
-                    else if (direction == Forward_Direction.Backward) motorGo(-min_speed / 4, -min_speed / 4, -pd_value, -pd_value)
-                }
-                timer_turn = control.millis()
-            }
-        }
-    }
-
-    /**
      * Spin the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
-    //% group="Motor Basic"
-    //% advanced=true
-    //% weight=99
-    //% block="Spin %_Spin|Speed %Speed"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=50
     export function Spin(spin: _Spin, speed: number): void {
         if (spin == _Spin.Left) {
             motorGo(-speed, -speed, speed, speed)
@@ -963,12 +736,6 @@ namespace KrathokKidsBit {
     /**
      * Turn the Robot to Left or Right. The speed motor is adjustable between 0 to 100.
      */
-    //% group="Motor Basic"
-    //% advanced=true
-    //% weight=98
-    //% block="Turn %_Turn|Speed %Speed"
-    //% speed.min=0 speed.max=100
-    //% speed.defl=50
     export function Turn(turn: _Turn, speed: number): void {
         if (turn == _Turn.Left) {
             motorGo(0, 0, speed, speed)
@@ -981,18 +748,6 @@ namespace KrathokKidsBit {
     /**
      * Control motors speed both at the same time. The speed motors is adjustable between -100 to 100.
      */
-    //% group="Motor Basic"
-    //% advanced=true
-    //% weight=97
-    //% block="Motor 1 %Motor1|Motor 2 %Motor2|Motor 3 %Motor3|Motor 4 %Motor4"
-    //% speed1.min=-100 speed1.max=100
-    //% speed2.min=-100 speed2.max=100
-    //% speed3.min=-100 speed3.max=100
-    //% speed4.min=-100 speed4.max=100
-    //% speed1.defl=50
-    //% speed2.defl=50
-    //% speed3.defl=50
-    //% speed4.defl=50
     export function motorGo(speed1: number, speed2: number, speed3: number, speed4: number): void {
         // หลังสั่งหยุดทำงานทั้งหมด บังคับเป็น 0 แทนการ return
         // เพื่อให้ขามอเตอร์ถูกขับให้หยุดจริง ไม่ใช่ค้างค่าเดิมไว้
@@ -1062,80 +817,8 @@ namespace KrathokKidsBit {
     }
 
     /**
-     * Control motor speed 1 channel. The speed motor is adjustable between -100 to 100.
-     */
-    //% group="Motor Basic"
-    //% advanced=true
-    //% weight=96
-    //% block="Motor %Motor_Write|Speed %Speed"
-    //% speed.min=-100 speed.max=100
-    //% speed.defl=50
-    export function motorWrite(motor: Motor_Write, speed: number): void {
-        if (kidsHalted) speed = 0
-        speed = pins.map(speed, -100, 100, -1023, 1023)
-
-        if (speed < -1023) speed = -1023
-        else if (speed > 1023) speed = 1023
-
-        if (motor == Motor_Write.Motor_1) {
-            if (speed < 0) {
-                analogWritePCA(13, 0)
-                pins.analogWritePin(AnalogPin.P14, -speed)
-                pins.analogSetPeriod(AnalogPin.P14, 2000)
-            }
-            else if (speed >= 0) {
-                analogWritePCA(13, 4095)
-                pins.analogWritePin(AnalogPin.P14, speed)
-                pins.analogSetPeriod(AnalogPin.P14, 2000)
-            }
-        }
-        else if (motor == Motor_Write.Motor_2) {
-            if (speed < 0) {
-                analogWritePCA(12, 0)
-                pins.analogWritePin(AnalogPin.P13, -speed)
-                pins.analogSetPeriod(AnalogPin.P13, 2000)
-            }
-            else if (speed >= 0) {
-                analogWritePCA(12, 4095)
-                pins.analogWritePin(AnalogPin.P13, speed)
-                pins.analogSetPeriod(AnalogPin.P13, 2000)
-            }
-        }
-        else if (motor == Motor_Write.Motor_3) {
-            if (speed < 0) {
-                analogWritePCA(14, 0)
-                pins.analogWritePin(AnalogPin.P16, -speed)
-                pins.analogSetPeriod(AnalogPin.P16, 2000)
-            }
-            else if (speed >= 0) {
-                analogWritePCA(14, 4095)
-                pins.analogWritePin(AnalogPin.P16, speed)
-                pins.analogSetPeriod(AnalogPin.P16, 2000)
-            }
-        }
-        else if (motor == Motor_Write.Motor_4) {
-            if (speed < 0) {
-                analogWritePCA(15, 0)
-                pins.analogWritePin(AnalogPin.P15, -speed)
-                pins.analogSetPeriod(AnalogPin.P15, 2000)
-            }
-            else if (speed >= 0) {
-                analogWritePCA(15, 4095)
-                pins.analogWritePin(AnalogPin.P15, speed)
-                pins.analogSetPeriod(AnalogPin.P15, 2000)
-            }
-        }
-    }
-
-    /**
      * Control Servo Motor 0 - 180 Degrees
      */
-    //% group="Servo Advanced"
-    //% advanced=true
-    //% weight=100
-    //% block="Servo %Servo_Write|Degree %Degree"
-    //% degree.min=0 degree.max=180
-    //% degree.defl=90
     export function servoWrite(servo: Servo_Write, degree: number): void {
         if (kidsHalted) return
         if (servo == Servo_Write.S0) {
@@ -1167,11 +850,6 @@ namespace KrathokKidsBit {
     /**
      * Read Angles from IMU
      */
-    //% group="IMU Angle"
-    //% advanced=true
-    //% weight=100
-    //% block="Read Angle %Angle"
-    //% offset.min=-180 offset.max=180
     export function anglesRead(anglesRead: Angle): number {
         if (initIMU == false) {
             initBNO055()
@@ -1192,10 +870,6 @@ namespace KrathokKidsBit {
     /**
      * Set IMU offset to 0
      */
-    //% group="IMU Angle"
-    //% advanced=true
-    //% weight=99
-    //% block="Set Angle Offset %Angle"
     export function setAngleOffset(setAngles: Angle): void {
         if (setAngles == Angle.Roll) {
             angle_offset[0] = getNormalizedOrientation(read16BitRegister(EULER_R_LSB, EULER_R_MSB) / 16, 0)
@@ -1211,11 +885,6 @@ namespace KrathokKidsBit {
     /**
      * Read Distance from Ultrasonic Sensor
      */
-    //% group="Ultrasonic"
-    //% advanced=true
-    //% weight=90
-    //% block="Read Distance Triger %Trigger_PIN|Echo %Echo_PIN"
-    //% Echo_PIN.defl=Ultrasonic_PIN.P2
     export function distanceRead(Trigger_PIN: Ultrasonic_PIN, Echo_PIN: Ultrasonic_PIN): number {
         let duration
         let maxCmDistance = 500
@@ -1274,10 +943,6 @@ namespace KrathokKidsBit {
     /**
      * Read Analog from ADC Channel
      */
-    //% group="ADC"
-    //% advanced=true
-    //% weight=80
-    //% block="Read ADC %ADC_Read"
     export function ADCRead(channel: ADC_Read): number {
         adcDetect()
         if (adcVersion == 2) {
@@ -1291,85 +956,6 @@ namespace KrathokKidsBit {
         // ค่าปกติจึงอยู่ในช่วง 0-4095 อยู่แล้ว มาสก์ไว้กันกรณีชิปไม่ตอบ
         // ซึ่งบัส I2C จะคืน 0xFFFF ออกมาเป็นค่าเซ็นเซอร์
         return pins.i2cReadNumber(ADS7828_ADDR, NumberFormat.UInt16BE, false) & 0x0FFF
-    }
-
-    /**
-     * Turn Left or Right Follower Line Mode
-     */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=86
-    //% block="TurnLINE %turn|Speed\n %speed|Sensor %sensor|Fast Time\n %time|Break Time %break_delay"
-    //% speed.min=0 speed.max=100
-    //% time.shadow="timePicker"
-    //% break_delay.shadow="timePicker"
-    //% time.defl=200
-    //% break_delay.defl=20
-    export function TurnLINE(turn: Turn_Line, speed: number, sensor: number, time: number, break_delay: number) {
-        let ADC_PIN = [
-            ADC_Read.ADC0,
-            ADC_Read.ADC1,
-            ADC_Read.ADC2,
-            ADC_Read.ADC3,
-            ADC_Read.ADC4,
-            ADC_Read.ADC5,
-            ADC_Read.ADC6,
-            ADC_Read.ADC7
-        ]
-        let on_line = 0
-        let adc_sensor_pin = sensor - 1
-        // let position = pins.map(sensor, 1, Num_Sensor, 0, (Num_Sensor - 1) * 1000)
-        let error = 0
-        let timer = 0
-        let motor_speed = 0
-        let motor_slow = Math.round(speed / 2)
-        while (1) {
-            if (kidsHalted) break
-            on_line = 0
-            for (let i = 0; i < Sensor_PIN.length; i++) {
-                if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[i]]), Color_Line[i], Color_Background[i], 1000, 0)) >= 500) {
-                    on_line += 1;
-                }
-            }
-
-            if (on_line == 0) {
-                break
-            }
-
-            if (turn == Turn_Line.Left) {
-                motorGo(-speed, -speed, speed, speed)
-            }
-            else if (turn == Turn_Line.Right) {
-                motorGo(speed, speed, -speed, -speed)
-            }
-        }
-        timer = control.millis()
-        while (1) {
-            if (kidsHalted) break
-            if ((pins.map(ADCRead(ADC_PIN[Sensor_PIN[adc_sensor_pin]]), Color_Line[adc_sensor_pin], Color_Background[adc_sensor_pin], 1000, 0)) >= 500) {
-                basic.pause(break_delay)
-                motorStop()
-                break
-            }
-            else {
-                error = timer - (control.millis() - time)
-                motor_speed = error
-
-                if (motor_speed > 100) {
-                    motor_speed = 100
-                }
-                else if (motor_speed < 0) {
-                    motor_speed = motor_slow
-                }
-
-                if (turn == Turn_Line.Left) {
-                    motorGo(-motor_speed, -motor_speed, motor_speed, motor_speed)
-                }
-                else if (turn == Turn_Line.Right) {
-                    motorGo(motor_speed, motor_speed, -motor_speed, -motor_speed)
-                }
-            }
-        }
     }
 
     // ---------- เลี้ยวหาเส้นแบบเร็วและแม่นยำ (TurnLINEPro) ----------
@@ -1423,13 +1009,6 @@ namespace KrathokKidsBit {
      * Fast sweep, slow approach, active brake and fine correction.
      * Gives up and stops after 4 seconds if no line is found.
      */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=85
-    //% block="TurnLINE Pro %turn|Fast Speed\n %fast_speed|Slow Speed\n %slow_speed|Brake Time %brake_time"
-    //% fast_speed.min=0 fast_speed.max=100 fast_speed.defl=80
-    //% slow_speed.min=0 slow_speed.max=100 slow_speed.defl=30
-    //% brake_time.shadow="timePicker" brake_time.defl=30
     export function TurnLINEPro(turn: Turn_Line, fast_speed: number, slow_speed: number, brake_time: number): void {
         if (Num_Sensor == 0 || kidsHalted) return
         let fast = Math.max(0, Math.min(100, fast_speed))
@@ -1499,14 +1078,6 @@ namespace KrathokKidsBit {
     /**
      * Line Follower Forward Timer
      */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=89
-    //% block="Direction %Forward_Direction|Time %time|Min Speed %base_speed|Max Speed %max_speed|KP %kp|KD %kd"
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
-    //% time.shadow="timePicker"
-    //% time.defl=200
     export function ForwardTIME(direction: Forward_Direction, time: number, min_speed: number, max_speed: number, kp: number, kd: number) {
         let timer = control.millis()
         resetPID()
@@ -1529,15 +1100,6 @@ namespace KrathokKidsBit {
     /**
      * Line Follower Forward with Counter Line
      */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=87
-    //% block="Direction %Forward_Direction|Find %Find_Line|Count Line %count|Min Speed\n %base_speed|Max Speed\n %max_speed|Break Time %break_time|KP %kp|KD %kd"
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
-    //% break_time.shadow="timePicker"
-    //% count.defl=2
-    //% break_time.defl=20
     export function ForwardLINECount(direction: Forward_Direction, find: Find_Line, count: number, min_speed: number, max_speed: number, break_time: number, kp: number, kd: number) {
         for (let i = 0; i < count; i++) {
             if (i < count - 1) {
@@ -1552,14 +1114,6 @@ namespace KrathokKidsBit {
     /**
      * Line Follower Forward
      */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=88
-    //% block="Direction %Forward_Direction|Find %Find_Line|Min Speed\n %base_speed|Max Speed\n %max_speed|Break Time %break_time|KP %kp|KD %kd"
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
-    //% break_time.shadow="timePicker"
-    //% break_time.defl=20
     export function ForwardLINE(direction: Forward_Direction, find: Find_Line, min_speed: number, max_speed: number, break_time: number, kp: number, kd: number) {
         let ADC_PIN = [
             ADC_Read.ADC0,
@@ -1768,12 +1322,6 @@ namespace KrathokKidsBit {
     /**
      * Basic Line Follower
      */
-    //% group="Line Follow PID"
-    //% advanced=true
-    //% weight=90
-    //% block="Min Speed %base_speed|Max Speed %max_speed|KP %kp|KD %kd"
-    //% min_speed.min=0 min_speed.max=100
-    //% max_speed.min=0 max_speed.max=100
     export function Follower(min_speed: number, max_speed: number, kp: number, kd: number) {
         pidStep(kp, kd)
         steerPair(min_speed, PD_Value, max_speed)
@@ -1783,77 +1331,13 @@ namespace KrathokKidsBit {
     /**
      * Get Position Line
      */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=96
-    //% block="GETPosition"
     export function GETPosition(): number {
         return positionFrom(readCenterRaw())
     }
 
     /**
-     * Print Sensor Value
-     */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=97
-    //% block="PrintSensorValue"
-    export function PrintSensorValue() {
-        let ADC_PIN = [
-            ADC_Read.ADC0,
-            ADC_Read.ADC1,
-            ADC_Read.ADC2,
-            ADC_Read.ADC3,
-            ADC_Read.ADC4,
-            ADC_Read.ADC5,
-            ADC_Read.ADC6,
-            ADC_Read.ADC7
-        ]
-
-        let sensor_left = "Sensor Left:"
-        let sensor_center = "Sensor Center:"
-        let sensor_right = "Sensor Right:"
-
-        for (let i = 0; i < Sensor_Left.length; i++) {
-            sensor_left += " " + ADCRead(ADC_PIN[Sensor_Left[i]])
-        }
-
-        for (let i = 0; i < Sensor_PIN.length; i++) {
-            sensor_center += " " + ADCRead(ADC_PIN[Sensor_PIN[i]])
-        }
-
-        for (let i = 0; i < Sensor_Right.length; i++) {
-            sensor_right += " " + ADCRead(ADC_PIN[Sensor_Right[i]])
-        }
-
-        serial.writeLine("" + sensor_left)
-        serial.writeLine("" + sensor_center)
-        serial.writeLine("" + sensor_right)
-    }
-
-    /**
-     * Set Value Sensor
-     */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=99
-    //% block="SETColorLine\n\n $line_center|Line Left\n\n\n\n\n $line_left|Line Right\n\n\n\n $line_right|SETColorGround $ground_center|Ground Left\n\n\n $ground_left|Ground Right\n\n $ground_right"
-    export function ValueSensorSET(line_center: number[], line_left: number[], line_right: number[], ground_center: number[], ground_left: number[], ground_right: number[]): void {
-        Color_Line = line_center
-        Color_Line_Left = line_left
-        Color_Line_Right = line_right
-        Color_Background = ground_center
-        Color_Background_Left = ground_left
-        Color_Background_Right = ground_right
-    }
-
-    /**
      * Set Line Sensor Pin
      */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=100
-    //% block="LINESensorSET $adc_pin|Sensor Left\n\n $sensor_left|Sensor Right\n $sensor_right|ON OFF Sensor $led_pin"
     export function LINESensorSET(adc_pin: number[], sensor_left: number[], sensor_right: number[], led_pin: LED_Pin): void {
         let asked = adc_pin.length + sensor_left.length + sensor_right.length
         Sensor_PIN = validChannels(adc_pin)
@@ -1871,29 +1355,6 @@ namespace KrathokKidsBit {
             music.playTone(196, music.beat(BeatFraction.Quarter))
             basic.showString("PIN?")
         }
-    }
-
-    /**
-     * Turn the line sensor LED on or off (pick the pin with LINESensorSET first)
-     */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=95
-    //% block="Line Sensor LED %on"
-    //% on.shadow="toggleOnOff"
-    export function LineSensorLED(on: boolean): void {
-        setLineLED(on)
-    }
-
-    /**
-     * Follow the taught line, or swap line and background
-     */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=94
-    //% block="Line Mode %mode"
-    export function SetLineMode(mode: Line_Follow_Mode): void {
-        Line_Mode = mode
     }
 
     // ---------- คาลิเบรตแบบลากหุ่นผ่านเส้น ----------
@@ -1920,11 +1381,6 @@ namespace KrathokKidsBit {
      * อ่านค่าตลอดเวลาที่ลาก แล้วหาค่าเฉลี่ยของ "ตอนอยู่บนเส้น" กับ "ตอนอยู่บนพื้น" ให้เอง
      * @param seconds เวลาที่ใช้ลาก หน่วยวินาที
      */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=97
-    //% block="SensorCalibrate Sweep $adc_pin|seconds $seconds"
-    //% seconds.min=3 seconds.max=30 seconds.defl=8
     export function SensorCalibrateSweep(adc_pin: number[], seconds: number): void {
         let chs = validChannels(adc_pin)
         let n = chs.length
@@ -2090,10 +1546,6 @@ namespace KrathokKidsBit {
     /**
      * Calibrate Sensor
      */
-    //% group="Line Setup"
-    //% advanced=true
-    //% weight=98
-    //% block="SensorCalibrate $adc_pin"
     export function SensorCalibrate(adc_pin: number[]): void {
         let ADC_PIN = [
             ADC_Read.ADC0,
