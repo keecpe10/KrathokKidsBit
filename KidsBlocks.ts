@@ -1011,7 +1011,7 @@ namespace KrathokKidsBit {
     let armServo = Kids_Servo.S1
     let armUp = 90
     let armDown = 20
-    let armStepMs = 400
+    let armStepMs = 400    // เวลารอหลังสั่งแต่ละท่าของแขนกล
 
     /**
      * ตั้งค่าแขนกล ว่าก้ามหนีบกับแขนยกอยู่เซอร์โวช่องไหน และใช้มุมเท่าไร
@@ -1021,12 +1021,12 @@ namespace KrathokKidsBit {
      * @param armServoCh ช่องเซอร์โวของแขน
      * @param up มุมตอนยกแขน
      * @param down มุมตอนลดแขน
-     * @param ms เวลาที่ใช้ขยับต่อหนึ่งท่า (ค่อยๆ หมุน) ถ้าอยากให้นุ่มขึ้นหรือแขนหนักให้เพิ่มเวลา
+     * @param ms เวลารอหลังสั่งแต่ละท่า ให้เซอร์โวหมุนไปถึงก่อนทำท่าต่อไป แขนหนักหรือหมุนไกลให้เพิ่มเวลา
      */
     //% group="แขนและก้าม"
     //% subcategory="เซอร์โว"
     //% weight=69
-    //% block="ตั้งค่าแขนกล ก้ามช่อง $gripServoCh เปิด $open หนีบ $close|แขนช่อง $armServoCh ยก $up ลง $down||ขยับท่าละ $ms มิลลิวินาที"
+    //% block="ตั้งค่าแขนกล ก้ามช่อง $gripServoCh เปิด $open หนีบ $close|แขนช่อง $armServoCh ยก $up ลง $down||รอท่าละ $ms มิลลิวินาที"
     //% expandableArgumentMode="toggle"
     //% gripServoCh.defl=Kids_Servo.S0 armServoCh.defl=Kids_Servo.S1
     //% open.shadow="protractorPicker" open.defl=175
@@ -1045,17 +1045,12 @@ namespace KrathokKidsBit {
         armStepMs = Math.max(0, ms)
     }
 
-    // ขยับเซอร์โวหนึ่งท่าแบบค่อยๆ หมุน ใช้เวลา armStepMs
-    // ถ้ายังไม่รู้มุมเดิม (ครั้งแรกหลังเปิดเครื่อง) ค่อยๆ หมุนไม่ได้
-    // จึงหมุนไปทันทีแล้วรอให้ถึงที่แทน
+    // ขยับเซอร์โวหนึ่งท่า สั่งไปที่มุมทันที แล้วรอให้เซอร์โวหมุนไปถึงจริง ๆ ก่อนทำท่าต่อไป
+    // เซอร์โวบอกตำแหน่งตัวเองไม่ได้ ถ้าไม่รอ ท่าถัดไปจะถูกสั่งทับตั้งแต่ยังหมุนไม่ถึง
+    // อยากได้แบบค่อยๆ หมุน ให้ใช้บล็อก "เซอร์โวช่อง _ ค่อยๆ หมุนไปที่ _ องศา" เอง
     function armMove(servo: Kids_Servo, degrees: number): void {
-        if (servoLast[servo] < 0) {
-            kidsServo(servo, degrees)
-            basic.pause(armStepMs)
-        }
-        else {
-            kidsServoSmooth(servo, degrees, armStepMs / 1000)
-        }
+        kidsServo(servo, degrees)
+        basic.pause(armStepMs)
     }
 
     /**
