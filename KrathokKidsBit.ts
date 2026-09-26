@@ -1073,6 +1073,33 @@ namespace KrathokKidsBit {
         }
     }
 
+    /* ==========================================================================
+       พื้นสีดำกว้าง (พื้นที่ทั้งแผ่น ไม่ใช่เส้นขวาง)
+
+       การยืนยันทางแยกใช้จังหวะที่เซ็นเซอร์ทางแยก "พ้นเส้น" เป็นตัวจบ
+       พื้นดำกว้าง ๆ (เช่นพื้นที่เก็บของสีดำในสนามแยกขยะ) ไม่มีจุดพ้น
+       หุ่นจึงวิ่งเลยไปจนหลุดพื้นดำแล้วไปเจอเส้นถัดไป
+
+       แยกเส้นขวางออกจากพื้นดำด้วยความกว้าง เส้นขวางกว้างราว 20 มม.
+       พื้นที่สีดำกว้างเป็นร้อยมิลลิเมตร ถ้าเห็นดำต่อเนื่องนานเกินกำหนดถือว่าเป็นพื้นดำ
+       แล้วเบรกหยุดตรงนั้น นับเป็นทางแยกหนึ่งครั้ง
+
+       เวลาที่ตั้งเป็นค่าที่ความเร็ว 40 โค้ดปรับสเกลตามความเร็วจริงให้เอง
+       (วิ่งเร็วขึ้น เวลาที่ใช้ข้ามเส้นขวางก็สั้นลงตามสัดส่วน)
+       ========================================================================== */
+    let Wide_Black_Ms = 250
+
+    export function setWideBlackMs(ms: number): void {
+        Wide_Black_Ms = Math.max(0, ms)
+    }
+
+    // เวลาสูงสุดที่ยอมให้เห็นดำต่อเนื่องที่ความเร็วนี้ 0 = ไม่จำกัด (ปิดการตรวจ)
+    function wideBlackLimit(speed: number): number {
+        if (Wide_Black_Ms <= 0) return 0
+        if (speed <= 0) return Wide_Black_Ms
+        return Math.max(60, Wide_Black_Ms * 40 / speed)
+    }
+
     /**
      * Line Follower Forward
      */
@@ -1095,6 +1122,8 @@ namespace KrathokKidsBit {
         let line_state = 0
         let on_line = 0
         let on_line_LR = 0
+        let wide_limit = wideBlackLimit(min_speed)
+        let escape_start = input.runningTime()
         resetPID()
 
         while (1) {
@@ -1119,6 +1148,9 @@ namespace KrathokKidsBit {
 
             if (found_left > 0 || found_right > 0) {
                 motorGo(min_speed, min_speed, min_speed, min_speed)
+                // เริ่มท่านี้บนพื้นดำกว้าง (เช่นหยุดค้างอยู่ในพื้นที่สีดำ) ออกจากลูปตามเวลา
+                // ไม่งั้นจะวิ่งหาขอบพื้นดำไปเรื่อย ๆ
+                if (wide_limit > 0 && input.runningTime() - escape_start > wide_limit) break
             }
             else {
                 break
@@ -1194,6 +1226,7 @@ namespace KrathokKidsBit {
                 else {
                     motorGo(-min_speed, -min_speed, -min_speed, -min_speed)
                 }
+                let confirm_start = input.runningTime()
                 while (1) {
             if (kidsHalted) break
                     for (let i = 0; i < Sensor_Left.length; i++) {
@@ -1217,6 +1250,22 @@ namespace KrathokKidsBit {
                     if (last_left != Sensor_Left.length && last_right != Sensor_Right.length) {
                         line_state = 2
                         break
+                    }
+
+                    // เห็นดำต่อเนื่องนานเกินความกว้างของเส้นขวาง = เป็นพื้นดำกว้าง ไม่ใช่เส้น
+                    // เบรกหยุดตรงนี้ นับเป็นทางแยกหนึ่งครั้ง
+                    if (wide_limit > 0 && input.runningTime() - confirm_start > wide_limit) {
+                        if (break_time > 0) {
+                            if (direction == Forward_Direction.Forward) {
+                                motorGo(-100, -100, -100, -100)
+                            }
+                            else {
+                                motorGo(100, 100, 100, 100)
+                            }
+                            basic.pause(break_time)
+                        }
+                        motorStop()
+                        return
                     }
 
                     last_left = 0
