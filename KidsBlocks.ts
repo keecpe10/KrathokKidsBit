@@ -542,6 +542,7 @@ namespace KrathokKidsBit {
     //% inlineInputMode=inline
     export function lineToJunctionTurn(junction: Kids_Junction, count: number, speed: number, dir: Kids_LeftRight, turnSpeed: number = 50, lastSpeed: number = 0): void {
         junctionRun(junction, count, speed, lastSpeed)
+        moveOntoJunction()      // ให้ล้ออยู่บนแยกก่อน หุ่นจะได้หมุนรอบจุดตัดของเส้น
         lineTurn(dir, turnSpeed)
     }
 
@@ -562,8 +563,10 @@ namespace KrathokKidsBit {
     //% inlineInputMode=inline
     export function lineToJunction(junction: Kids_Junction, count: number, speed: number, then: Kids_Then = Kids_Then.Stop, turnSpeed: number = 50, lastSpeed: number = 0): void {
         junctionRun(junction, count, speed, lastSpeed)
+        if (then == Kids_Then.Stop) return
+        moveOntoJunction()
         if (then == Kids_Then.TurnLeft) lineTurn(Kids_LeftRight.Left, turnSpeed)
-        else if (then == Kids_Then.TurnRight) lineTurn(Kids_LeftRight.Right, turnSpeed)
+        else lineTurn(Kids_LeftRight.Right, turnSpeed)
     }
 
     /**
@@ -581,8 +584,58 @@ namespace KrathokKidsBit {
         ForwardTIME(Forward_Direction.Forward, Math.max(0, seconds) * 1000, speed, Math.min(100, speed * 2), kpFor(speed), kdFor(speed))
     }
 
+    // เวลาเดินต่อให้ล้อขึ้นไปอยู่บนทางแยก ก่อนหมุนตัว (0 = ไม่เดินต่อ)
+    let ontoMs = 0
+    let ontoSpeed = 40
+
+    /**
+     * ตั้งระยะ "เดินต่อให้ล้ออยู่บนทางแยก" ก่อนเลี้ยว
+     *
+     * แถบเซ็นเซอร์อยู่หน้าเพลาล้อ บล็อกนับทางแยกจึงหยุดตอนเซ็นเซอร์พ้นเส้นขวางไปแล้ว
+     * แต่เพลาล้อยังไม่ถึงเส้น ถ้าหมุนตัวตอนนั้น หุ่นจะหมุนรอบจุดที่ไม่ใช่จุดตัดของเส้น
+     * เซ็นเซอร์จะไปเจอเส้นใหม่แบบเฉียง ๆ หุ่นจึงออกจากแยกไม่ตรงเส้น
+     * เห็นชัดที่สุดตอนเจอเส้นหักศอก 90 องศา หรือแยกตัว T ที่ไม่มีเส้นตรงไปข้างหน้า
+     * เพราะไม่มีเส้นตรงให้ PID ดึงหุ่นกลับเข้ากลางหลังเลี้ยว
+     *
+     * ตั้งเวลาให้ล้อขึ้นไปหยุดคร่อมเส้นขวางพอดี วัดครั้งเดียวแล้วใช้ได้ตลอด
+     * เพราะระยะจากแถบเซ็นเซอร์ถึงเพลาล้อเป็นค่าประจำหุ่น
+     * @param ms เวลาเดินต่อ (0 = ปิด ใช้พฤติกรรมเดิม)
+     * @param speed ความเร็วตอนเดินต่อ ควรช้าเพื่อให้วัดง่ายและหยุดแม่น
+     */
+    //% group="ตั้งค่าเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=86
+    //% block="ก่อนเลี้ยว เดินต่อให้ล้ออยู่บนแยก $ms มิลลิวินาที ความเร็ว $speed"
+    //% ms.shadow="timePicker" ms.defl=0
+    //% speed.min=10 speed.max=100 speed.defl=40
+    //% inlineInputMode=inline
+    export function setMoveOntoJunction(ms: number, speed: number = 40): void {
+        ontoMs = Math.max(0, ms)
+        ontoSpeed = kidsClamp(speed, 10, 100)
+    }
+
+    /**
+     * เดินต่อให้ล้อขึ้นไปอยู่บนทางแยก ตามเวลาที่ตั้งไว้ในบล็อก "ก่อนเลี้ยว เดินต่อ..."
+     *
+     * บล็อก "เดินตามเส้นไปจนเจอ ... แล้วเลี้ยว" เรียกให้เองอยู่แล้ว
+     * ใช้บล็อกนี้เองเมื่อสั่งหยุดที่แยกก่อน แล้วค่อยสั่งเลี้ยวแยกกัน
+     * ถ้ายังไม่ได้ตั้งเวลา (หรือตั้ง 0) บล็อกนี้ไม่ทำอะไร
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=83
+    //% block="เดินต่อให้ล้ออยู่บนทางแยก"
+    export function moveOntoJunction(): void {
+        if (ontoMs <= 0 || kidsHalted) return
+        // เดินตรงด้วยไจโร ไม่ใช้เส้น เพราะแยกตัว T กับเส้นหักศอกไม่มีเส้นตรงให้เกาะ
+        robotStraightFor(Kids_Direction.Forward, ontoSpeed, ontoMs / 1000)
+        motorStop()
+    }
+
     /**
      * เลี้ยวที่ทางแยก หมุนตัวเร็วแล้วค่อยๆ ช้าลง หยุดเมื่อเซ็นเซอร์ตรงกลางคร่อมเส้นใหม่พอดี
+     * หมุนรอบเพลาล้อ ถ้าล้อยังไม่อยู่บนแยก หุ่นจะออกจากแยกไม่ตรงเส้น
+     * ดูบล็อก "ก่อนเลี้ยว เดินต่อให้ล้ออยู่บนแยก"
      */
     //% group="สั่งเดินตามเส้น"
     //% subcategory="เดินตามเส้น"
