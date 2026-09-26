@@ -1045,39 +1045,51 @@ namespace KrathokKidsBit {
         armStepMs = Math.max(0, ms)
     }
 
-    // ขยับเซอร์โวหนึ่งท่า สั่งไปที่มุมทันที แล้วรอให้เซอร์โวหมุนไปถึงจริง ๆ ก่อนทำท่าต่อไป
+    // ขยับเซอร์โวหนึ่งท่า
+    // ปกติสั่งไปที่มุมทันที แล้วรอให้เซอร์โวหมุนไปถึงจริง ๆ ก่อนทำท่าต่อไป
     // เซอร์โวบอกตำแหน่งตัวเองไม่ได้ ถ้าไม่รอ ท่าถัดไปจะถูกสั่งทับตั้งแต่ยังหมุนไม่ถึง
-    // อยากได้แบบค่อยๆ หมุน ให้ใช้บล็อก "เซอร์โวช่อง _ ค่อยๆ หมุนไปที่ _ องศา" เอง
-    function armMove(servo: Kids_Servo, degrees: number): void {
-        kidsServo(servo, degrees)
-        basic.pause(armStepMs)
+    // smooth = ค่อยๆ หมุนภายในเวลาเดียวกัน ของที่คีบอยู่จึงไม่สะบัด
+    // ท่าแรกหลังเปิดเครื่องยังไม่รู้มุมเดิม ค่อยๆ หมุนไม่ได้ จึงสั่งทันทีแล้วรอแทน
+    function armMove(servo: Kids_Servo, degrees: number, smooth: boolean): void {
+        if (smooth && servoLast[servo] >= 0) {
+            kidsServoSmooth(servo, degrees, armStepMs / 1000)
+        }
+        else {
+            kidsServo(servo, degrees)
+            basic.pause(armStepMs)
+        }
     }
 
     /**
      * สั่งแขนกลทำท่าที่เลือก
      * จับแล้วยก = อ้าก้าม → ลดแขน → หนีบ → ยกแขน
      * วางแล้วปล่อย = ลดแขน → อ้าก้าม → ยกแขน
+     * กด ⊕ แล้วเปิด "ค่อยๆ หมุน" ถ้าไม่อยากให้ของที่คีบอยู่สะบัด
+     * ใช้เวลาต่อท่าเท่ากับเวลารอที่ตั้งไว้ในบล็อก "ตั้งค่าแขนกล"
+     * @param smooth ค่อยๆ หมุนแทนการสั่งไปที่มุมทันที
      */
     //% group="แขนและก้าม"
     //% subcategory="เซอร์โว"
     //% weight=68
-    //% block="แขนกล $action"
-    export function armDo(action: Kids_ArmAction): void {
+    //% block="แขนกล $action||ค่อยๆ หมุน $smooth"
+    //% expandableArgumentMode="toggle"
+    //% smooth.shadow="toggleOnOff" smooth.defl=false
+    export function armDo(action: Kids_ArmAction, smooth: boolean = false): void {
         switch (action) {
-            case Kids_ArmAction.OpenGrip: armMove(gripServo, gripOpen); break
-            case Kids_ArmAction.CloseGrip: armMove(gripServo, gripClose); break
-            case Kids_ArmAction.ArmUp: armMove(armServo, armUp); break
-            case Kids_ArmAction.ArmDown: armMove(armServo, armDown); break
+            case Kids_ArmAction.OpenGrip: armMove(gripServo, gripOpen, smooth); break
+            case Kids_ArmAction.CloseGrip: armMove(gripServo, gripClose, smooth); break
+            case Kids_ArmAction.ArmUp: armMove(armServo, armUp, smooth); break
+            case Kids_ArmAction.ArmDown: armMove(armServo, armDown, smooth); break
             case Kids_ArmAction.GripAndLift:
-                armMove(gripServo, gripOpen)
-                armMove(armServo, armDown)
-                armMove(gripServo, gripClose)
-                armMove(armServo, armUp)
+                armMove(gripServo, gripOpen, smooth)
+                armMove(armServo, armDown, smooth)
+                armMove(gripServo, gripClose, smooth)
+                armMove(armServo, armUp, smooth)
                 break
             case Kids_ArmAction.PlaceAndRelease:
-                armMove(armServo, armDown)
-                armMove(gripServo, gripOpen)
-                armMove(armServo, armUp)
+                armMove(armServo, armDown, smooth)
+                armMove(gripServo, gripOpen, smooth)
+                armMove(armServo, armUp, smooth)
                 break
         }
     }
