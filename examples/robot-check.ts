@@ -88,7 +88,7 @@ if (step("3/8 LINE SENSORS", "slide robot over", "line, A = done")) {
 // ---- 4 เดินตามเส้นไปทางแยกแรก ----
 if (step("4/8 TO JUNCTION", "put on line,", "junction ahead")) {
     let t = input.runningTime()
-    KrathokKidsBit.lineToJunction(Kids_Junction.Center, 1, 60)
+    KrathokKidsBit.lineToJunctionStop(Kids_Junction.Center, 1, 60)
     say(3, "time " + (input.runningTime() - t) + " ms")
     say(4, "stopped at junction?")
     next()
@@ -115,7 +115,7 @@ if (step("5/8 TURN L + R", "put at junction", "(after step 4)")) {
 // ---- 6 วิ่งเร็วนับ 2 ทางแยกแล้วเลี้ยวซ้าย (แบบโปรแกรมแข่ง) ----
 if (step("6/8 FAST RUN", "2 junctions ahead,", "speed 80 + turn L")) {
     let t = input.runningTime()
-    KrathokKidsBit.lineToJunction(Kids_Junction.Center, 2, 80, Kids_Then.TurnLeft, 50)
+    KrathokKidsBit.lineToJunctionTurn(Kids_Junction.Center, 2, 80, Kids_LeftRight.Left, 50)
     basic.pause(300)
     let e = lineErr()
     say(3, "time " + (input.runningTime() - t) + " ms")

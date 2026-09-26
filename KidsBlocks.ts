@@ -481,34 +481,17 @@ namespace KrathokKidsBit {
         motorStop()
     }
 
-    /**
-     * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุดหรือเลี้ยวต่อทันที
-     * @param count จำนวนทางแยกที่จะนับ
-     * @param speed ความเร็วตอนเดินตามเส้น
-     * @param then ทำอะไรต่อเมื่อถึงทางแยก
-     * @param turnSpeed ความเร็วตอนเลี้ยว
-     * @param lastSpeed ความเร็วช่วงเข้าทางแยกครั้งสุดท้าย 0 = ใช้ความเร็วเดิมตลอด
-     */
-    //% group="สั่งเดินตามเส้น"
-    //% subcategory="เดินตามเส้น"
-    //% weight=85
-    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed แล้ว $then||ความเร็วเลี้ยว $turnSpeed ความเร็วครั้งสุดท้าย $lastSpeed"
-    //% expandableArgumentMode="toggle"
-    //% count.min=1 count.defl=1
-    //% speed.min=0 speed.max=100 speed.defl=40
-    //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
-    //% lastSpeed.min=0 lastSpeed.max=100 lastSpeed.defl=0
-    //% inlineInputMode=inline
-    export function lineToJunction(junction: Kids_Junction, count: number, speed: number, then: Kids_Then = Kids_Then.Stop, turnSpeed: number = 50, lastSpeed: number = 0): void {
+    // เดินตามเส้นไปจนเจอทางแยกครบจำนวน แล้วเบรกหยุด (ยังไม่เลี้ยว)
+    // lastSpeed > 0 = วิ่งเร็วไปจนเหลือทางแยกสุดท้าย แล้วชะลอเข้าแยกนั้น
+    // ยิ่งเร็วยิ่งไถเลยแยก การชะลอเฉพาะช่วงท้ายจึงจอดตรงแยกได้แม่นโดยไม่เสียเวลาทั้งทาง
+    // ทางแยกระหว่างทางไม่เบรก (เบรกเวลา 0) เพราะยังต้องวิ่งต่อ
+    function junctionRun(junction: Kids_Junction, count: number, speed: number, lastSpeed: number): void {
         kidsLineReady()
         speed = kidsClamp(speed, 0, 100)
         lastSpeed = kidsClamp(lastSpeed, 0, 100)
         count = Math.max(1, Math.floor(count))
         let find = junction == Kids_Junction.Left ? Find_Line.Left : (junction == Kids_Junction.Right ? Find_Line.Right : Find_Line.Center)
         if (lastSpeed > 0 && lastSpeed != speed) {
-            // วิ่งเร็วไปจนเหลือทางแยกสุดท้าย แล้วชะลอเข้าแยกนั้น
-            // ยิ่งเร็วยิ่งไถเลยแยก การชะลอเฉพาะช่วงท้ายจึงจอดตรงแยกได้แม่นโดยไม่เสียเวลาทั้งทาง
-            // ทางแยกระหว่างทางไม่เบรก (เบรกเวลา 0) เพราะยังต้องวิ่งต่อ
             if (count > 1) {
                 ForwardLINECount(Forward_Direction.Forward, find, count - 1, speed, Math.min(100, speed * 2), 0, kpFor(speed), kdFor(speed))
             }
@@ -518,6 +501,67 @@ namespace KrathokKidsBit {
             ForwardLINECount(Forward_Direction.Forward, find, count, speed, Math.min(100, speed * 2), 20, kpFor(speed), kdFor(speed))
         }
         motorStop()
+    }
+
+    /**
+     * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วหยุด
+     * @param count จำนวนทางแยกที่จะนับ
+     * @param speed ความเร็วตอนเดินตามเส้น
+     * @param lastSpeed ความเร็วช่วงเข้าทางแยกครั้งสุดท้าย 0 = ใช้ความเร็วเดิมตลอด
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=85
+    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed แล้วหยุด||ความเร็วครั้งสุดท้าย $lastSpeed"
+    //% expandableArgumentMode="toggle"
+    //% count.min=1 count.defl=1
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% lastSpeed.min=0 lastSpeed.max=100 lastSpeed.defl=0
+    //% inlineInputMode=inline
+    export function lineToJunctionStop(junction: Kids_Junction, count: number, speed: number, lastSpeed: number = 0): void {
+        junctionRun(junction, count, speed, lastSpeed)
+    }
+
+    /**
+     * เดินตามเส้นไปจนเจอทางแยกตามจำนวนครั้ง แล้วเลี้ยวต่อทันที
+     * @param count จำนวนทางแยกที่จะนับ
+     * @param speed ความเร็วตอนเดินตามเส้น
+     * @param dir เลี้ยวไปทางไหน
+     * @param turnSpeed ความเร็วตอนเลี้ยว
+     * @param lastSpeed ความเร็วช่วงเข้าทางแยกครั้งสุดท้าย 0 = ใช้ความเร็วเดิมตลอด
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=84
+    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed แล้วเลี้ยว $dir||ความเร็วเลี้ยว $turnSpeed ความเร็วครั้งสุดท้าย $lastSpeed"
+    //% expandableArgumentMode="toggle"
+    //% count.min=1 count.defl=1
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
+    //% lastSpeed.min=0 lastSpeed.max=100 lastSpeed.defl=0
+    //% inlineInputMode=inline
+    export function lineToJunctionTurn(junction: Kids_Junction, count: number, speed: number, dir: Kids_LeftRight, turnSpeed: number = 50, lastSpeed: number = 0): void {
+        junctionRun(junction, count, speed, lastSpeed)
+        lineTurn(dir, turnSpeed)
+    }
+
+    /**
+     * บล็อกเดิมที่รวมหยุดกับเลี้ยวไว้ด้วยกัน ถูกแยกเป็นสองบล็อกแล้วตั้งแต่ v2.10.0
+     * ซ่อนจากกล่องบล็อก แต่ยังเปิดโปรแกรมเก่าที่ใช้บล็อกนี้ได้
+     */
+    //% group="สั่งเดินตามเส้น"
+    //% subcategory="เดินตามเส้น"
+    //% weight=83
+    //% block="เดินตามเส้นไปจนเจอ $junction จำนวน $count ครั้ง ความเร็ว $speed แล้ว $then||ความเร็วเลี้ยว $turnSpeed ความเร็วครั้งสุดท้าย $lastSpeed"
+    //% blockHidden=true
+    //% expandableArgumentMode="toggle"
+    //% count.min=1 count.defl=1
+    //% speed.min=0 speed.max=100 speed.defl=40
+    //% turnSpeed.min=0 turnSpeed.max=100 turnSpeed.defl=50
+    //% lastSpeed.min=0 lastSpeed.max=100 lastSpeed.defl=0
+    //% inlineInputMode=inline
+    export function lineToJunction(junction: Kids_Junction, count: number, speed: number, then: Kids_Then = Kids_Then.Stop, turnSpeed: number = 50, lastSpeed: number = 0): void {
+        junctionRun(junction, count, speed, lastSpeed)
         if (then == Kids_Then.TurnLeft) lineTurn(Kids_LeftRight.Left, turnSpeed)
         else if (then == Kids_Then.TurnRight) lineTurn(Kids_LeftRight.Right, turnSpeed)
     }
